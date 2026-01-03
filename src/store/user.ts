@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { loginApi, logoutApi, getUserInfo } from '@/api/user'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 
+
 interface UserState {
   token: string
   userInfo: Record<string, any>
@@ -30,7 +31,18 @@ export const useUserStore = defineStore('user', {
     async login(loginForm: { username: string; password: string }) {
       try {
         const res = await loginApi(loginForm)
-        const { token } = res
+        // 检查响应格式，兼容不同格式
+        let token;
+        if (res.data && typeof res.data === 'object' && 'token' in res.data) {
+          // 如果res.data是包含token的对象
+          token = res.data.token
+        } else if (res.token) {
+          // 如果res直接包含token
+          token = res.token
+        } else {
+          // 如果响应格式不符合预期
+          throw new Error('登录响应格式错误')
+        }
         this.token = token
         setToken(token)
         return Promise.resolve()
@@ -43,7 +55,19 @@ export const useUserStore = defineStore('user', {
     async fetchUserInfo() {
       try {
         const res = await getUserInfo()
-        const { user, roles, permissions } = res
+        // 检查响应格式，兼容不同格式
+        let user, roles, permissions;
+        if (res.data && typeof res.data === 'object') {
+          // 如果res.data是包含用户信息的对象
+          user = res.data.user
+          roles = res.data.roles
+          permissions = res.data.permissions
+        } else {
+          // 如果res直接包含用户信息
+          user = res.user
+          roles = res.roles
+          permissions = res.permissions
+        }
         this.userInfo = user
         this.roles = roles
         this.permissions = permissions

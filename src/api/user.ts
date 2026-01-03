@@ -1,21 +1,15 @@
-// 用户相关 API 占位
+// 用户相关 API
 import type { ResponseData } from '@/types/api'
+import service from './http'
 
-export async function loginApi(_params: { username: string; password: string }): Promise<{ token: string }> {
-  // TODO: 替换为真实后端请求
-  return Promise.resolve({ token: 'mock-token' })
+export async function loginApi(params: { username: string; password: string }): Promise<any> {
+  return service.post('/api/auth/login', params)
 }
 
-export async function logoutApi(): Promise<ResponseData> {
-  // TODO: 替换为真实后端请求
-  return Promise.resolve({ code: 200, msg: '退出成功', data: null })
+export async function logoutApi(): Promise<any> {
+  return service.post('/api/auth/logout')
 }
 
-export async function getUserInfo(): Promise<{ user: any; roles: string[]; permissions: string[] }> {
-  // TODO: 替换为真实后端请求
-  return Promise.resolve({
-    user: { username: 'admin', email: 'admin@example.com' },
-    roles: ['admin'],
-    permissions: ['*'],
-  })
+export async function getUserInfo(): Promise<any> {
+  return service.get('/api/user/info')
 }
