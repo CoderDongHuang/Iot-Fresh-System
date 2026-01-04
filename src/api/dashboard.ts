@@ -31,15 +31,15 @@ export interface DashboardStatistics {
 
 // 获取仪表盘统计数据
 export function getDashboardStatistics(): Promise<DashboardStatistics> {
-  return service.get('/api/dashboard/statistics')
+  return service.get('http://localhost:8080/api/dashboard/statistics')
 }
 
 // 获取设备状态分布
 export function getDeviceStatusDistribution() {
-  return service.get('/api/dashboard/device-status-distribution')
+  return service.get('http://localhost:8080/api/dashboard/device-status-distribution')
 }
 
 // 获取最近报警信息
 export function getRecentAlarms() {
-  return service.get('/api/dashboard/recent-alarms')
+  return service.get('http://localhost:8080/api/dashboard/recent-alarms')
 }
