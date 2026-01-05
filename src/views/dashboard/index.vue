@@ -206,7 +206,10 @@
         </template>
         <DeviceStatusTable 
           ref="deviceTableRef" 
+          :data="deviceList"
           @device-click="handleDeviceClick"
+          @view-detail="handleViewDetail"
+          @control-device="handleControlDevice"
         />
       </el-card>
     </div>
@@ -318,6 +321,16 @@ const refreshDeviceList = () => {
 
 // 处理设备点击
 const handleDeviceClick = (device: DeviceInfo) => {
+  router.push(`/device/detail/${device.vid}`)
+}
+
+// 处理查看设备详情
+const handleViewDetail = (device: DeviceInfo) => {
+  router.push(`/device/detail/${device.vid}`)
+}
+
+// 处理设备控制
+const handleControlDevice = (device: DeviceInfo) => {
   router.push(`/device/detail/${device.vid}`)
 }
 

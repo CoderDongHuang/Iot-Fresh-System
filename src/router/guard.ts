@@ -24,12 +24,12 @@ export function createRouterGuard(router: Router) {
       NProgress.done()
       return
     }
-    if (!userStore.roles.length) {
+    if (!userStore.roles || !userStore.roles.length) {
       try {
         await userStore.fetchUserInfo()
         if (to.meta.roles) {
           const roles = to.meta.roles as string[]
-          const hasRole = userStore.roles.some((role: string) => roles.includes(role))
+          const hasRole = userStore.roles && userStore.roles.some((role: string) => roles.includes(role))
           if (!hasRole) {
             next('/401')
             NProgress.done()
