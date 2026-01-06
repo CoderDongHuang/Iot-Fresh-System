@@ -40,8 +40,8 @@
             <div class="card-footer">
               <span>环比 {{ statistics.dataGrowth }}%</span>
               <el-icon :color="statistics.dataGrowth >= 0 ? '#67c23a' : '#f56c6c'">
-                <TrendingUp v-if="statistics.dataGrowth >= 0" />
-                <TrendingDown v-else />
+                <CaretTop v-if="statistics.dataGrowth >= 0" />
+                <CaretBottom v-else />
               </el-icon>
             </div>
           </el-card>
@@ -106,9 +106,9 @@
                 <span>温度实时监控</span>
                 <div class="chart-controls">
                   <el-radio-group v-model="tempTimeRange" size="small">
-                    <el-radio-button label="1h">1小时</el-radio-button>
-                    <el-radio-button label="6h">6小时</el-radio-button>
-                    <el-radio-button label="24h">24小时</el-radio-button>
+                    <el-radio-button value="1h">1小时</el-radio-button>
+                    <el-radio-button value="6h">6小时</el-radio-button>
+                    <el-radio-button value="24h">24小时</el-radio-button>
                   </el-radio-group>
                   <el-button 
                     type="primary" 
@@ -133,7 +133,7 @@
                 <span>设备状态分布</span>
               </div>
             </template>
-            <DevicePieChart ref="deviceChartRef" />
+            <DevicePieChart ref="deviceChartRef" :data="statistics.deviceStatusDistribution" />
           </el-card>
         </el-col>
       </el-row>
@@ -179,6 +179,7 @@
             </template>
             <AlarmBarChart 
               ref="alarmChartRef" 
+              :data="alarmChartData"
               :date-range="alarmDateRange" 
             />
           </el-card>
@@ -222,6 +223,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDashboardStatistics } from '@/api/dashboard'
 import { getDeviceList } from '@/api/device'
+import { getAlarmStatistics } from '@/api/alarm'
 import TemperatureChart from '@/components/charts/TemperatureChart.vue'
 import DevicePieChart from '@/components/charts/DevicePieChart.vue'
 import LightChart from '@/components/charts/LightChart.vue'
@@ -239,8 +241,17 @@ const statistics = reactive({
   dataGrowth: 0,
   unresolvedAlarms: 0,
   todayAlarms: 0,
+  alarmCount: 0,
+  alarmTrend: 0,
   systemStatus: '正常',
   cpuUsage: 0,
+  deviceStatusDistribution: {
+    online: 0,
+    offline: 0,
+    fault: 0,
+    maintenance: 0
+  },
+  recentAlarms: []
 })
 
 // 图表相关
@@ -250,6 +261,9 @@ const tempTimeRange = ref('1h')
 const selectedDevice = ref('')
 const deviceList = ref<DeviceInfo[]>([])
 const alarmDateRange = ref<[Date, Date]>()
+
+// 报警统计图表数据
+const alarmChartData = ref<{ type: string; count: number; level: 'low' | 'medium' | 'high' | 'critical' }[]>([])
 
 // 计算属性
 const onlinePercentage = computed(() => {
@@ -274,9 +288,60 @@ const fetchStatistics = async () => {
   try {
     const data = await getDashboardStatistics()
     Object.assign(statistics, data)
+    
+    // 获取报警统计数据并更新图表
+    await fetchAlarmStatistics()
   } catch (error) {
     console.error('获取统计数据失败:', error)
   }
+}
+
+// 获取报警统计数据
+const fetchAlarmStatistics = async () => {
+  try {
+    const response = await getAlarmStatistics()
+    // 根据后端实际返回的数据格式处理
+    // 如果后端返回直接的数组: [{ type: '温度异常', count: 10, level: 'high' }, ...]
+    if (Array.isArray(response)) {
+      alarmChartData.value = response.map((item: any) => ({
+        type: item.type,
+        count: item.count,
+        level: validateAlarmLevel(item.level)
+      }))
+    }
+    // 如果后端返回包装格式: { data: [{ type: '温度异常', count: 10, level: 'high' }, ...] }
+    else if (response && response.data && Array.isArray(response.data)) {
+      alarmChartData.value = response.data.map((item: any) => ({
+        type: item.type,
+        count: item.count,
+        level: validateAlarmLevel(item.level)
+      }))
+    } 
+    // 如果后端返回其他格式，根据实际情况调整
+    else {
+      console.warn('报警统计数据格式不正确:', response)
+      alarmChartData.value = []
+    }
+  } catch (error) {
+    console.error('获取报警统计数据失败:', error)
+    // 设置默认数据
+    alarmChartData.value = []
+  }
+}
+
+// 验证并标准化报警级别
+const validateAlarmLevel = (level: string): 'low' | 'medium' | 'high' | 'critical' => {
+  const validLevels: Array<'low' | 'medium' | 'high' | 'critical'> = ['low', 'medium', 'high', 'critical']
+  if (validLevels.includes(level as any)) {
+    return level as 'low' | 'medium' | 'high' | 'critical'
+  }
+  // 如果后端使用其他格式，尝试映射
+  if (level === '紧急' || level === 'critical') return 'critical'
+  if (level === '高' || level === 'high') return 'high'
+  if (level === '中' || level === 'medium') return 'medium'
+  if (level === '低' || level === 'low') return 'low'
+  // 默认返回中等级别
+  return 'medium'
 }
 
 // 获取设备列表

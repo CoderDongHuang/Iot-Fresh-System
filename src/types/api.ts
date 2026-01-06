@@ -72,3 +72,33 @@ export interface DeviceQueryParams extends PageParams {
   startTime?: string
   endTime?: string
 }
+
+// 仪表盘统计信息类型
+export interface DeviceStatusDistribution {
+  online: number
+  offline: number
+  fault: number
+  maintenance: number
+}
+
+export interface DashboardStatistics {
+  onlineDevices: number
+  totalDevices: number
+  todayData: number
+  dataGrowth: number
+  unresolvedAlarms: number
+  todayAlarms: number
+  alarmCount: number
+  alarmTrend: number
+  systemStatus: string
+  cpuUsage: number
+  deviceStatusDistribution: DeviceStatusDistribution
+  recentAlarms: Array<{
+    id: number
+    deviceName: string
+    alarmType: string
+    alarmLevel: string
+    timestamp: string
+    status: string
+  }>
+}

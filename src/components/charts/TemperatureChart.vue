@@ -167,6 +167,15 @@ const initChart = () => {
   window.addEventListener('resize', handleResize)
 }
 
+// 定义温度数据类型
+interface TemperatureData {
+  timestamp: string
+  tin: number
+  tout: number
+  tinDH: number
+  tinDL: number
+}
+
 // 获取数据
 const fetchData = async () => {
   try {
@@ -184,7 +193,7 @@ const fetchData = async () => {
         break
     }
     // mock 数据，实际请替换为后端接口
-    const data = Array.from({ length: 30 }, (_, i) => {
+    const data: TemperatureData[] = Array.from({ length: 30 }, (_, i) => {
       const t = new Date(startTime.getTime() + (endTime.getTime() - startTime.getTime()) * i / 29)
       return {
         timestamp: t.toISOString(),
@@ -201,7 +210,7 @@ const fetchData = async () => {
 }
 
 // 更新图表数据
-const updateChart = (data: any[]) => {
+const updateChart = (data: TemperatureData[]) => {
   if (!chartInstance) return
   
   const tinData: [string, number][] = []
@@ -217,44 +226,106 @@ const updateChart = (data: any[]) => {
     tinDLData.push([time, item.tinDL || 5])
   })
   
-  chartInstance.setOption({
+  // 获取当前图表选项以保留其他配置
+  const currentOption: any = chartInstance.getOption() || {}
+  
+  const option = {
+    ...currentOption,
     series: [
-      { data: tinData },
-      { data: toutData },
-      { data: tinDHData },
-      { data: tinDLData },
+      { 
+        ...(currentOption.series && currentOption.series[0]), 
+        data: tinData, 
+        type: 'line', 
+        name: '厢内温度' 
+      },
+      { 
+        ...(currentOption.series && currentOption.series[1]), 
+        data: toutData, 
+        type: 'line', 
+        name: '厢外温度' 
+      },
+      { 
+        ...(currentOption.series && currentOption.series[2]), 
+        data: tinDHData, 
+        type: 'line', 
+        name: '设定上限' 
+      },
+      { 
+        ...(currentOption.series && currentOption.series[3]), 
+        data: tinDLData, 
+        type: 'line', 
+        name: '设定下限' 
+      }
     ],
-  })
+  }
+  
+  // 检查图表是否已经初始化了系列
+  try {
+    chartInstance.setOption(option, true)
+  } catch (error) {
+    console.warn('更新图表数据失败:', error)
+  }
 }
 
 // WebSocket实时数据
 const { connect, disconnect, onMessage } = useWebSocket()
 
-const handleRealtimeData = (data: any) => {
+// 定义实时数据类型
+interface RealtimeData {
+  tin?: number
+  tout?: number
+  [key: string]: any
+}
+
+const handleRealtimeData = (data: RealtimeData) => {
   if (!chartInstance) return
   
   const time = new Date().toISOString()
-  const series = chartInstance.getOption().series as any[]
+  const option = chartInstance.getOption()
   
-  if (series && series[0] && series[0].data) {
-    const tinData = series[0].data as [string, number][]
-    const toutData = series[1].data as [string, number][]
+  if (option && option.series && Array.isArray(option.series)) {
+    const series = option.series as any[]
     
-    // 添加新数据，最多保留100个点
-    tinData.push([time, data.tin])
-    toutData.push([time, data.tout])
-    
-    if (tinData.length > 100) {
-      tinData.shift()
-      toutData.shift()
+    if (series.length >= 2 && series[0] && series[0].data && series[1] && series[1].data) {
+      const tinData = [...series[0].data as [string, number][]]
+      const toutData = [...series[1].data as [string, number][]]
+      
+      // 添加新数据，最多保留100个点
+      tinData.push([time, (data.tin !== undefined && data.tin !== null) ? data.tin : 0])
+      toutData.push([time, (data.tout !== undefined && data.tout !== null) ? data.tout : 0])
+      
+      if (tinData.length > 100) {
+        tinData.shift()
+        toutData.shift()
+      }
+      
+      chartInstance.setOption({
+        series: [
+          { 
+            ...series[0], 
+            data: tinData, 
+            type: series[0].type || 'line',
+            name: series[0].name || '厢内温度'
+          },
+          { 
+            ...series[1], 
+            data: toutData, 
+            type: series[1].type || 'line',
+            name: series[1].name || '厢外温度'
+          },
+          { 
+            ...series[2], 
+            type: series[2].type || 'line',
+            name: series[2].name || '设定上限'
+          },
+          { 
+            ...series[3], 
+            type: series[3].type || 'line',
+            name: series[3].name || '设定下限'
+          }
+        ],
+      })
     }
-    
-    chartInstance.setOption({
-      series: [
-        { data: tinData },
-        { data: toutData },
-      ],
-    })
   }
 }
 
@@ -270,7 +341,13 @@ const refresh = () => {
 
 // 处理窗口大小变化
 const handleResize = () => {
-  chartInstance?.resize()
+  if (chartInstance) {
+    try {
+      chartInstance.resize()
+    } catch (error) {
+      console.warn('ECharts resize error:', error)
+    }
+  }
 }
 
 onMounted(async () => {
@@ -279,7 +356,12 @@ onMounted(async () => {
   
   // 连接WebSocket
   connect()
-  onMessage('temperature', handleRealtimeData)
+  onMessage('temperature', (data: unknown) => {
+    // 确保图表已初始化再处理实时数据
+    if (chartInstance && typeof data === 'object' && data !== null) {
+      handleRealtimeData(data as RealtimeData)
+    }
+  })
   
   // 定时更新数据
   dataUpdateInterval = setInterval(fetchData, 60000) // 每分钟更新一次

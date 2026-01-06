@@ -2,8 +2,10 @@ import { ref, onUnmounted } from 'vue'
 
 interface WebSocketMessage {
   type: string
-  data: any
+  data: unknown
 }
+
+type MessageHandler = (data: unknown) => void
 
 export function useWebSocket() {
   const wsUrl = import.meta.env.VITE_APP_WS_URL
@@ -100,7 +102,7 @@ export function useWebSocket() {
   }
 
   // 注册消息处理器
-  const onMessage = (type: string, handler: Function) => {
+  const onMessage = (type: string, handler: MessageHandler) => {
     if (!messageHandlers.has(type)) {
       messageHandlers.set(type, [])
     }
