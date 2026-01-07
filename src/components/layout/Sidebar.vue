@@ -1,6 +1,6 @@
 <template>
-  <el-aside width="200px" class="sidebar">
-    <el-menu :default-active="activeMenu" class="el-menu-vertical-demo" router>
+  <el-header class="top-menu">
+    <el-menu :default-active="activeMenu" class="el-menu-horizontal" mode="horizontal" router>
       <el-menu-item index="/dashboard">
         <el-icon><HomeFilled /></el-icon>
         <span>仪表盘</span>
@@ -30,7 +30,7 @@
         <span>系统设置</span>
       </el-menu-item>
     </el-menu>
-  </el-aside>
+  </el-header>
 </template>
 
 <script setup lang="ts">
@@ -43,10 +43,40 @@ const activeMenu = computed(() => route.path)
 </script>
 
 <style scoped>
-.sidebar {
-  height: 100vh;
-  background: #fff;
-  border-right: 1px solid #ebeef5;
-  box-shadow: 2px 0 8px 0 rgba(0,0,0,0.03);
+.top-menu {
+  background: rgba(25, 40, 70, 0.7) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(41, 121, 255, 0.3) !important;
+  box-shadow: 
+    0 4px 20px rgba(5, 20, 45, 0.5),
+    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
+  padding: 0 20px !important;
+  height: 60px !important;
+  z-index: 1000;
+}
+
+.el-menu-horizontal {
+  border: none !important;
+  background: transparent !important;
+  height: 60px !important;
+  line-height: 60px !important;
+  
+  .el-menu-item {
+    color: #a0b8d8 !important;
+    height: 60px !important;
+    line-height: 60px !important;
+    border-bottom: 2px solid transparent !important;
+    
+    &:hover {
+      color: #e6f0ff !important;
+      background: rgba(41, 121, 255, 0.1) !important;
+    }
+    
+    &.is-active {
+      color: #00e676 !important;
+      background: rgba(41, 121, 255, 0.2) !important;
+      border-bottom: 2px solid #00e676 !important;
+    }
+  }
 }
 </style>

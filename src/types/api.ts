@@ -24,13 +24,16 @@ export interface DeviceInfo {
   vid: string
   deviceName?: string
   deviceType?: string
-  status: number
+  status: number | string // 状态可能是数字或字符串
   location?: string
   contactPhone?: string
   description?: string
   lastHeartbeat?: string
+  lastOnlineTime?: string
   createTime?: string
   updateTime?: string
+  remarks?: string
+  currentData?: DeviceData
 }
 
 export interface DeviceData {

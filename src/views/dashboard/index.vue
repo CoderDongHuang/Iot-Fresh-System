@@ -156,6 +156,7 @@
             </template>
             <LightChart 
               ref="lightChartRef" 
+              :time-range="tempTimeRange"
               :device-vid="selectedDevice" 
             />
           </el-card>
@@ -255,7 +256,10 @@ const statistics = reactive({
 })
 
 // 图表相关
-
+const tempChartRef = ref()
+const deviceChartRef = ref()
+const lightChartRef = ref()
+const alarmChartRef = ref()
 
 const tempTimeRange = ref('1h')
 const selectedDevice = ref('')
@@ -370,6 +374,9 @@ const refreshChart = (type: string) => {
       break
     case 'light':
       // 重新获取数据以实现刷新效果
+      if (lightChartRef.value && typeof lightChartRef.value.refresh === 'function') {
+        lightChartRef.value.refresh()
+      }
       break
     case 'alarm':
       // 重新获取数据以实现刷新效果
@@ -453,6 +460,9 @@ onUnmounted(() => {
 .dashboard-container {
   height: 100%;
   overflow-y: auto;
+  background: linear-gradient(135deg, #050e1a, #0a192f);
+  padding: 20px;
+  color: #e6f0ff;
 }
 
 .statistics-cards {
@@ -461,11 +471,28 @@ onUnmounted(() => {
 
 .card-item {
   margin-bottom: 20px;
+  background: rgba(25, 40, 70, 0.7) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(41, 121, 255, 0.3) !important;
+  box-shadow: 
+    0 4px 20px rgba(5, 20, 45, 0.5),
+    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
+  border-radius: 12px !important;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border: 1px solid rgba(41, 121, 255, 0.6) !important;
+    box-shadow: 
+      0 6px 25px rgba(5, 20, 45, 0.7),
+      0 0 15px rgba(41, 121, 255, 0.3),
+      0 0 0 1px rgba(41, 121, 255, 0.3) inset;
+  }
   
   .card-content {
     display: flex;
     align-items: center;
     margin-bottom: 15px;
+    padding: 15px;
     
     .card-icon {
       width: 50px;
@@ -475,10 +502,12 @@ onUnmounted(() => {
       align-items: center;
       justify-content: center;
       margin-right: 15px;
+      background: linear-gradient(135deg, #112240, #1e3a5f);
+      box-shadow: 0 4px 10px rgba(5, 20, 45, 0.3);
       
       .el-icon {
         font-size: 24px;
-        color: white;
+        color: #00e676; // 荧光绿
       }
     }
     
@@ -487,14 +516,15 @@ onUnmounted(() => {
       
       .card-title {
         font-size: 14px;
-        color: #909399;
+        color: #a0b8d8; // 浅灰蓝
         margin-bottom: 5px;
       }
       
       .card-value {
         font-size: 24px;
         font-weight: bold;
-        color: #303133;
+        color: #e6f0ff; // 浅白色
+        text-shadow: 0 0 10px rgba(41, 121, 255, 0.5);
       }
     }
   }
@@ -504,10 +534,12 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     font-size: 12px;
-    color: #909399;
+    color: #7a92b0; // 灰蓝色
+    padding: 0 15px 15px;
     
     .el-progress {
       width: 100px;
+      background: rgba(41, 121, 255, 0.2) !important;
     }
   }
 }
@@ -517,16 +549,37 @@ onUnmounted(() => {
 }
 
 .chart-card {
-  height: 300px;
+  height: 350px;
+  background: rgba(15, 30, 55, 0.6) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(41, 121, 255, 0.3) !important;
+  box-shadow: 
+    0 4px 20px rgba(5, 20, 45, 0.5),
+    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
+  border-radius: 12px !important;
+  padding: 15px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border: 1px solid rgba(41, 121, 255, 0.6) !important;
+    box-shadow: 
+      0 6px 25px rgba(5, 20, 45, 0.7),
+      0 0 15px rgba(41, 121, 255, 0.3),
+      0 0 0 1px rgba(41, 121, 255, 0.3) inset;
+  }
   
   .chart-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(41, 121, 255, 0.2);
     
     span {
       font-weight: bold;
-      color: #303133;
+      color: #e6f0ff; // 浅白色
+      font-size: 16px;
     }
     
     .chart-controls {
@@ -538,14 +591,36 @@ onUnmounted(() => {
 }
 
 .device-table {
+  background: rgba(15, 30, 55, 0.6) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(41, 121, 255, 0.3) !important;
+  box-shadow: 
+    0 4px 20px rgba(5, 20, 45, 0.5),
+    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
+  border-radius: 12px !important;
+  padding: 15px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border: 1px solid rgba(41, 121, 255, 0.6) !important;
+    box-shadow: 
+      0 6px 25px rgba(5, 20, 45, 0.7),
+      0 0 15px rgba(41, 121, 255, 0.3),
+      0 0 0 1px rgba(41, 121, 255, 0.3) inset;
+  }
+  
   .table-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(41, 121, 255, 0.2);
     
     span {
       font-weight: bold;
-      color: #303133;
+      color: #e6f0ff; // 浅白色
+      font-size: 16px;
     }
     
     .table-controls {
@@ -558,7 +633,7 @@ onUnmounted(() => {
 // 响应式调整
 @media (max-width: 1200px) {
   .chart-card {
-    height: 280px;
+    height: 320px;
   }
 }
 
@@ -568,13 +643,17 @@ onUnmounted(() => {
   }
   
   .chart-card {
-    height: 250px;
+    height: 300px;
   }
   
   .chart-header {
     flex-direction: column;
     align-items: flex-start !important;
     gap: 10px;
+  }
+  
+  .dashboard-container {
+    padding: 10px;
   }
 }
 </style>

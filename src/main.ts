@@ -7,6 +7,7 @@ import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import '@/assets/styles/index.scss'
+import '@/styles/theme.scss'
 import { registerDirectives } from './directives'
 
 const app = createApp(App)

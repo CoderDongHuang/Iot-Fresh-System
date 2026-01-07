@@ -156,5 +156,13 @@ const formatTime = (time: string | undefined) => {
 <style scoped>
 .device-status-table {
   width: 100%;
+  background: rgba(15, 30, 55, 0.4);
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(41, 121, 255, 0.2);
+  box-shadow: 
+    0 4px 15px rgba(5, 20, 45, 0.3),
+    inset 0 0 15px rgba(41, 121, 255, 0.1);
+  overflow: hidden;
 }
 </style>

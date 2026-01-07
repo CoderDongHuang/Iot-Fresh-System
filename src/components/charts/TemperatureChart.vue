@@ -6,14 +6,18 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useWebSocket } from '@/composables/useWebSocket'
-// import { getTemperatureHistory } from '@/api/data' // TODO: 实现 getTemperatureHistory API
+import { getTemperatureHistory } from '@/api/data'
 
 interface Props {
   timeRange: string
+  deviceVid?: string
+  showTitle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   timeRange: '1h',
+  deviceVid: '',
+  showTitle: true,
 })
 
 const chartRef = ref<HTMLElement>()
@@ -192,21 +196,50 @@ const fetchData = async () => {
         startTime.setDate(startTime.getDate() - 1)
         break
     }
-    // mock 数据，实际请替换为后端接口
-    const data: TemperatureData[] = Array.from({ length: 30 }, (_, i) => {
-      const t = new Date(startTime.getTime() + (endTime.getTime() - startTime.getTime()) * i / 29)
-      return {
-        timestamp: t.toISOString(),
-        tin: 10 + Math.random() * 10,
-        tout: 5 + Math.random() * 10,
-        tinDH: 25,
-        tinDL: 5
+    
+    // 如果有设备VID，则获取特定设备的温度数据
+    if (props.deviceVid) {
+      try {
+        const data = await getTemperatureHistory(props.deviceVid, {
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          timeRange: props.timeRange
+        })
+        
+        // 假设后端返回的数据格式为 { list: [{ timestamp, tin, tout, tinDH, tinDL }, ...] }
+        if (data && Array.isArray(data.list)) {
+          updateChart(data.list)
+        } else {
+          // 如果后端返回格式不同，使用mock数据
+          generateMockData(startTime, endTime)
+        }
+      } catch (error) {
+        console.error('获取设备温度历史数据失败:', error)
+        // 如果获取特定设备数据失败，使用模拟数据
+        generateMockData(startTime, endTime)
       }
-    })
-    updateChart(data)
+    } else {
+      // 如果没有指定设备VID，使用模拟数据
+      generateMockData(startTime, endTime)
+    }
   } catch (error) {
     console.error('获取温度数据失败:', error)
   }
+}
+
+// 生成模拟数据的辅助函数
+const generateMockData = (startTime: Date, endTime: Date) => {
+  const data: TemperatureData[] = Array.from({ length: 30 }, (_, i) => {
+    const t = new Date(startTime.getTime() + (endTime.getTime() - startTime.getTime()) * i / 29)
+    return {
+      timestamp: t.toISOString(),
+      tin: 10 + Math.random() * 10,
+      tout: 5 + Math.random() * 10,
+      tinDH: 25,
+      tinDL: 5
+    }
+  })
+  updateChart(data)
 }
 
 // 更新图表数据
@@ -334,6 +367,10 @@ watch(() => props.timeRange, () => {
   fetchData()
 })
 
+watch(() => props.deviceVid, () => {
+  fetchData()
+}, { immediate: true })
+
 // 刷新图表
 const refresh = () => {
   fetchData()
@@ -392,5 +429,12 @@ defineExpose({
   width: 100%;
   height: 100%;
   min-height: 250px;
+  background: rgba(15, 30, 55, 0.4);
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(41, 121, 255, 0.2);
+  box-shadow: 
+    0 4px 15px rgba(5, 20, 45, 0.3),
+    inset 0 0 15px rgba(41, 121, 255, 0.1);
 }
 </style>

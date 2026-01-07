@@ -1,7 +1,10 @@
 <template>
   <div class="layout-container">
-    <!-- 侧边栏 -->
-    <Sidebar v-if="!isMobile" />
+    <!-- 顶部导航栏 -->
+    <Navbar />
+    
+    <!-- 顶部菜单栏 -->
+    <Sidebar v-if="!isMobile" class="top-menu" />
     
     <!-- 移动端菜单按钮 -->
     <div v-else class="mobile-menu-btn" @click="drawerVisible = true">
@@ -19,9 +22,6 @@
     </el-drawer>
     
     <div class="main-container">
-      <!-- 顶部导航栏 -->
-      <Navbar />
-      
       <!-- 标签页 -->
       <TagsView v-if="showTagsView" />
       
@@ -91,24 +91,28 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100vh;
   display: flex;
+  flex-direction: column;
   overflow: hidden;
+  background: linear-gradient(135deg, #050e1a, #0a192f);
 }
 
 .mobile-menu-btn {
   position: fixed;
-  top: 10px;
+  top: 70px; // 为顶部导航栏留出空间
   left: 10px;
   z-index: 1001;
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--el-color-primary);
+  background: rgba(41, 121, 255, 0.7);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
+  box-shadow: 0 4px 10px rgba(5, 20, 45, 0.5);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(41, 121, 255, 0.5);
 }
 
 .main-container {
@@ -116,26 +120,37 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin-top: 0; // 顶部菜单栏已占用空间
+}
+
+.top-menu {
+  flex-shrink: 0;
 }
 
 .app-main {
   flex: 1;
   padding: 20px;
   overflow: auto;
-  background: #f0f2f5;
+  background: transparent; // 移除之前的背景色，使用全局背景
   
   &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   
   &::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: rgba(10, 25, 47, 0.5);
+    border-radius: 4px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
+    background: rgba(41, 121, 255, 0.4);
+    border-radius: 4px;
+    border: 1px solid rgba(41, 121, 255, 0.2);
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(41, 121, 255, 0.7);
   }
 }
 
