@@ -1,10 +1,10 @@
-import type { ResponseData } from '@/types/api'
+import type { ResponseData, PageResult } from '@/types/api'
 import service from './http'
 
 // 报警相关API
 
 // 获取报警列表
-export function getAlarmList(params: any): Promise<any> {
+export function getAlarms(params: any): Promise<ResponseData<PageResult<any>>> {
   return service.get('http://localhost:8080/api/alarm/list', { params })
 }
 
@@ -14,8 +14,18 @@ export function getAlarmStatistics(): Promise<any> {
 }
 
 // 处理报警
-export function handleAlarm(alarmId: number, action: string): Promise<ResponseData> {
-  return service.post(`http://localhost:8080/api/alarm/handle/${alarmId}`, { action })
+export function resolveAlarm(alarmId: number): Promise<ResponseData> {
+  return service.post(`http://localhost:8080/api/alarm/resolve/${alarmId}`)
+}
+
+// 忽略报警
+export function ignoreAlarm(alarmId: number): Promise<ResponseData> {
+  return service.post(`http://localhost:8080/api/alarm/ignore/${alarmId}`)
+}
+
+// 清除全部报警
+export function clearAllAlarms(): Promise<ResponseData> {
+  return service.delete('http://localhost:8080/api/alarm/clear-all')
 }
 
 // 获取报警详情
