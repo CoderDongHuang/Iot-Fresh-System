@@ -177,10 +177,39 @@ const fetchAlarms = async () => {
       keyword: filter.value.keyword || undefined
     }
     
-    const response = await getAlarms(params)
-    if (response.data && response.data.list) {
-      alarms.value = response.data.list
-      pagination.value.total = response.data.total
+    const response: any = await getAlarms(params)
+    
+    // 检查响应格式并提取数据
+    let resultData = null
+    if (response && response.data) {
+      // 标准格式: { code: 200, msg: 'success', data: { list: [], total: 100 } }
+      resultData = response.data
+    } else if (response && response.list) {
+      // 直接格式: { list: [], total: 100 }
+      resultData = response
+    }
+    
+    if (resultData && resultData.list) {
+      // 数据标准化：确保使用前端期望的字段名
+      const normalizedList = resultData.list.map((alarm: any) => ({
+        ...alarm,
+        // 如果后端返回的是alarmLevel，则映射到level
+        level: alarm.level || alarm.alarmLevel,
+        // 如果后端返回的是alarmType，则映射到type
+        type: alarm.type || alarm.alarmType,
+        // 确保其他可能的字段映射正确
+        deviceName: alarm.deviceName || alarm.device_name || alarm.name,
+        alarmContent: alarm.alarmContent || alarm.content || alarm.message,
+        timestamp: alarm.timestamp || alarm.time || alarm.createTime,
+        status: alarm.status || alarm.state
+      }))
+      
+      alarms.value = normalizedList
+      pagination.value.total = resultData.total || resultData.list.length
+    } else {
+      console.warn('报警列表数据格式不正确:', response)
+      alarms.value = []
+      pagination.value.total = 0
     }
   } catch (error) {
     console.error('获取报警列表失败:', error)
@@ -202,9 +231,14 @@ const refreshAlarms = () => {
 // 处理报警
 const resolveAlarm = async (alarm: any) => {
   try {
-    await apiResolveAlarm(alarm.id)
-    ElMessage.success('报警处理成功')
-    fetchAlarms() // 刷新列表
+    const response = await apiResolveAlarm(alarm.id)
+    // 检查响应是否成功
+    if (response) {
+      ElMessage.success('报警处理成功')
+      fetchAlarms() // 刷新列表
+    } else {
+      throw new Error('处理报警失败')
+    }
   } catch (error) {
     console.error('处理报警失败:', error)
     ElMessage.error('处理报警失败')
@@ -214,9 +248,14 @@ const resolveAlarm = async (alarm: any) => {
 // 忽略报警
 const ignoreAlarm = async (alarm: any) => {
   try {
-    await apiIgnoreAlarm(alarm.id)
-    ElMessage.success('报警已忽略')
-    fetchAlarms() // 刷新列表
+    const response = await apiIgnoreAlarm(alarm.id)
+    // 检查响应是否成功
+    if (response) {
+      ElMessage.success('报警已忽略')
+      fetchAlarms() // 刷新列表
+    } else {
+      throw new Error('忽略报警失败')
+    }
   } catch (error) {
     console.error('忽略报警失败:', error)
     ElMessage.error('忽略报警失败')
@@ -232,9 +271,14 @@ const clearAllAlarms = async () => {
       type: 'warning'
     })
     
-    await apiClearAllAlarms()
-    ElMessage.success('全部报警清除成功')
-    fetchAlarms() // 刷新列表
+    const response = await apiClearAllAlarms()
+    // 检查响应是否成功
+    if (response) {
+      ElMessage.success('全部报警清除成功')
+      fetchAlarms() // 刷新列表
+    } else {
+      throw new Error('清除报警失败')
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('清除报警失败:', error)

@@ -14,9 +14,12 @@ export function formatDate(dateString: string | number | Date, format = 'YYYY-MM
   } else if (typeof dateString === 'number') {
     // 如果是数字，假设是时间戳
     date = new Date(dateString)
-  } else {
+  } else if (dateString instanceof Date) {
     // 如果已经是Date对象
     date = dateString
+  } else {
+    // 如果是其他类型（如对象），尝试转换为字符串再解析
+    date = new Date(String(dateString))
   }
   
   // 检查日期是否有效
@@ -50,8 +53,10 @@ export function getRelativeTime(date: Date | string | number): string {
     targetDate = new Date(date)
   } else if (typeof date === 'number') {
     targetDate = new Date(date)
-  } else {
+  } else if (date instanceof Date) {
     targetDate = date
+  } else {
+    targetDate = new Date(String(date))
   }
   
   if (isNaN(targetDate.getTime())) {

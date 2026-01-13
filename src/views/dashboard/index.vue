@@ -304,25 +304,28 @@ const fetchStatistics = async () => {
 const fetchAlarmStatistics = async () => {
   try {
     const response = await getAlarmStatistics()
-    // 根据后端实际返回的数据格式处理
-    // 如果后端返回直接的数组: [{ type: '温度异常', count: 10, level: 'high' }, ...]
-    if (Array.isArray(response)) {
-      alarmChartData.value = response.map((item: any) => ({
-        type: item.type,
-        count: item.count,
-        level: validateAlarmLevel(item.level)
-      }))
-    }
-    // 如果后端返回包装格式: { data: [{ type: '温度异常', count: 10, level: 'high' }, ...] }
-    else if (response && response.data && Array.isArray(response.data)) {
-      alarmChartData.value = response.data.map((item: any) => ({
-        type: item.type,
-        count: item.count,
-        level: validateAlarmLevel(item.level)
-      }))
+    
+    // 检查响应结构并提取统计数据
+    let stats: any = null
+    
+    // 情况1: 响应遵循标准格式，数据在data字段中
+    if (response && response.data && typeof response.data === 'object') {
+      stats = response.data
     } 
-    // 如果后端返回其他格式，根据实际情况调整
-    else {
+    // 情况2: 响应直接包含统计数据字段
+    else if (response && typeof response === 'object') {
+      stats = response
+    }
+    
+    if (stats) {
+      // 将统计数据转换为图表需要的格式
+      alarmChartData.value = [
+        { type: '紧急', count: stats.critical || 0, level: 'critical' },
+        { type: '重要', count: stats.high || 0, level: 'high' },
+        { type: '一般', count: stats.medium || 0, level: 'medium' },
+        { type: '提示', count: stats.low || 0, level: 'low' }
+      ]
+    } else {
       console.warn('报警统计数据格式不正确:', response)
       alarmChartData.value = []
     }

@@ -6,11 +6,49 @@
       </template>
     </el-page-header>
 
-    <el-card shadow="hover" class="control-card">
+    <!-- 设备选择 -->
+    <el-card shadow="hover" class="device-selector-card">
+      <div class="device-selector">
+        <span class="selector-label">选择控制设备：</span>
+        <el-select 
+          v-model="selectedDeviceId" 
+          placeholder="请选择要控制的设备"
+          @change="onDeviceSelect"
+          style="width: 300px; margin-right: 20px;"
+        >
+          <el-option
+            v-for="device in availableDevices"
+            :key="device.vid"
+            :label="`${device.deviceName} (${device.vid})`"
+            :value="device.vid"
+          >
+            <div class="device-option">
+              <span>{{ device.deviceName }}</span>
+              <el-tag 
+                :type="getStatusTagType(device.status)" 
+                size="small"
+                style="margin-left: 10px;"
+              >
+                {{ getStatusText(device.status) }}
+              </el-tag>
+            </div>
+          </el-option>
+        </el-select>
+        <el-button 
+          type="primary" 
+          :disabled="!selectedDeviceId"
+          @click="refreshDeviceDetail"
+        >
+          刷新设备信息
+        </el-button>
+      </div>
+    </el-card>
+
+    <el-card shadow="hover" class="control-card" v-if="selectedDevice.vid">
       <template #header>
         <div class="control-header">
           <div class="device-info">
-            <h3>设备控制 - {{ selectedDevice.vid }}</h3>
+            <h3>设备控制 - {{ selectedDevice.deviceName }} ({{ selectedDevice.vid }})</h3>
             <div class="device-meta">
               <el-tag :type="getStatusTagType(selectedDevice.status)" size="small">
                 {{ getStatusText(selectedDevice.status) }}
@@ -134,13 +172,14 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { VideoPlay, VideoPause, Refresh, RefreshLeft } from '@element-plus/icons-vue'
-import { controlDevice as sendControlCommand, getDeviceDetail } from '@/api/device'
+import { controlDevice as sendControlCommand, getDeviceDetail, getDeviceList } from '@/api/device'
 import type { DeviceInfo } from '@/types/api'
 
 const router = useRouter()
 const route = useRoute()
 
 // 响应式数据
+const selectedDeviceId = ref<string>('')
 const selectedDevice = ref<DeviceInfo>({
   vid: '',
   deviceName: '',
@@ -152,6 +191,7 @@ const selectedDevice = ref<DeviceInfo>({
   remarks: '',
   currentData: undefined
 })
+const availableDevices = ref<DeviceInfo[]>([])
 
 const tempSetting = ref(25)
 const brightnessSetting = ref(80)
@@ -163,11 +203,30 @@ const commandHistory = ref([
   { command: 'setTemp', params: '{"temp": 25}', timestamp: '2024-12-19 10:25:00', status: 'success' }
 ])
 
-// 获取路由参数中的设备ID
-const deviceId = route.query.device as string
+// 获取设备列表
+const fetchDeviceList = async () => {
+  try {
+    const response = await getDeviceList({ pageNum: 1, pageSize: 100 }) // 获取所有设备
+    availableDevices.value = response.list || []
+    
+    // 如果路由中有设备ID参数，选择该设备
+    const deviceIdFromRoute = route.query.device as string
+    if (deviceIdFromRoute) {
+      selectedDeviceId.value = deviceIdFromRoute
+      await fetchDeviceDetail(deviceIdFromRoute)
+    } else if (availableDevices.value.length > 0) {
+      // 如果没有指定设备，选择第一个设备
+      selectedDeviceId.value = availableDevices.value[0].vid
+      await fetchDeviceDetail(availableDevices.value[0].vid)
+    }
+  } catch (error) {
+    console.error('获取设备列表失败:', error)
+    ElMessage.error('获取设备列表失败')
+  }
+}
 
 // 获取设备详情
-const fetchDeviceDetail = async () => {
+const fetchDeviceDetail = async (deviceId: string) => {
   try {
     if (!deviceId) {
       ElMessage.error('未指定设备')
@@ -182,11 +241,23 @@ const fetchDeviceDetail = async () => {
   }
 }
 
+// 设备选择事件
+const onDeviceSelect = async (deviceId: string) => {
+  await fetchDeviceDetail(deviceId)
+}
+
+// 刷新设备详情
+const refreshDeviceDetail = async () => {
+  if (selectedDeviceId.value) {
+    await fetchDeviceDetail(selectedDeviceId.value)
+  }
+}
+
 // 发送控制命令
 const sendCommand = async (command: string, params: Record<string, any> = {}) => {
   try {
-    if (!deviceId) {
-      ElMessage.error('未指定设备')
+    if (!selectedDeviceId.value) {
+      ElMessage.error('未选择设备')
       return
     }
 
@@ -195,7 +266,7 @@ const sendCommand = async (command: string, params: Record<string, any> = {}) =>
       params
     }
 
-    const response = await sendControlCommand(deviceId, payload)
+    const response = await sendControlCommand(selectedDeviceId.value, payload)
     
     // 添加到命令历史
     commandHistory.value.unshift({
@@ -287,7 +358,7 @@ const getStatusText = (status: string | number) => {
 
 // 初始化
 onMounted(() => {
-  fetchDeviceDetail()
+  fetchDeviceList()
 })
 </script>
 
@@ -299,6 +370,29 @@ onMounted(() => {
 .page-title {
   font-size: 18px;
   font-weight: bold;
+}
+
+.device-selector-card {
+  margin-bottom: 20px;
+}
+
+.device-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.selector-label {
+  font-weight: bold;
+  color: #606266;
+}
+
+.device-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .control-card {

@@ -9,13 +9,18 @@ export function getAlarms(params: any): Promise<ResponseData<PageResult<any>>> {
 }
 
 // 获取报警统计
-export function getAlarmStatistics(): Promise<any> {
+export function getAlarmStatistics(): Promise<ResponseData<any>> {
   return service.get('http://localhost:8080/api/alarm/statistics')
 }
 
 // 处理报警
 export function resolveAlarm(alarmId: number): Promise<ResponseData> {
   return service.post(`http://localhost:8080/api/alarm/resolve/${alarmId}`)
+}
+
+// 处理报警
+export function handleAlarm(alarmId: number, action: string): Promise<ResponseData> {
+  return service.post(`http://localhost:8080/api/alarm/${action}/${alarmId}`)
 }
 
 // 忽略报警
@@ -34,7 +39,7 @@ export function getAlarmDetail(alarmId: number): Promise<any> {
 }
 
 // 获取报警设置
-export function getAlarmSettings(): Promise<any> {
+export function getAlarmSettings(): Promise<ResponseData<any>> {
   return service.get('http://localhost:8080/api/alarm/settings')
 }
 
