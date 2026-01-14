@@ -67,9 +67,13 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastOnlineTime" label="最后在线" min-width="150">
+        <el-table-column label="最后在线" min-width="150">
           <template #default="{ row }">
-            {{ row.lastOnlineTime ? formatDate(row.lastOnlineTime) : '-' }}
+            {{ 
+              row.lastOnlineTime ? formatDate(row.lastOnlineTime) : 
+              (row.lastOnline_time ? formatDate(row.lastOnline_time) : 
+              (row.last_heartbeat ? formatDate(row.last_heartbeat) : '-')) 
+            }}
           </template>
         </el-table-column>
         <el-table-column label="温度(℃)" min-width="100">
@@ -151,9 +155,39 @@ const fetchDeviceList = async () => {
       status: statusFilter.value
     }
     
-    const response = await getDeviceList(params)
-    deviceList.value = response.list || []
-    total.value = response.total || 0
+    const response: any = await getDeviceList(params)
+    
+    // 检查响应格式并提取数据
+    let resultData = null
+    if (response && response.data) {
+      // 标准格式: { code: 200, msg: 'success', data: { list: [], total: 100 } }
+      resultData = response.data
+    } else if (response && response.list) {
+      // 直接格式: { list: [], total: 100 }
+      resultData = response
+    }
+    
+    if (resultData && resultData.list) {
+      // 数据标准化：确保使用前端期望的字段名
+      const normalizedList = resultData.list.map((device: any) => ({
+        ...device,
+        // 时间字段标准化
+        lastOnlineTime: device.lastOnlineTime || device.lastOnline_time || device.last_heartbeat || device.lastHeartbeat || null,
+        createTime: device.createTime || device.create_time || device.create_time || null,
+        // 其他字段标准化
+        deviceName: device.deviceName || device.device_name || device.name || device.deviceName,
+        deviceType: device.deviceType || device.device_type || device.type || device.category,
+        location: device.location || device.loc || device.place || device.installLocation || '-',
+        status: device.status || device.state || device.devStatus
+      }))
+      
+      deviceList.value = normalizedList
+      total.value = resultData.total || resultData.list.length
+    } else {
+      console.warn('设备列表数据格式不正确:', response)
+      deviceList.value = []
+      total.value = 0
+    }
   } catch (error) {
     console.error('获取设备列表失败:', error)
     ElMessage.error('获取设备列表失败')

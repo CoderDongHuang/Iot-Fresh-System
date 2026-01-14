@@ -82,29 +82,39 @@
       </el-row>
     </el-card>
     
-    <!-- 历史数据图表 -->
-    <el-card shadow="hover" class="chart-card">
+    <!-- 历史数据表格 -->
+    <el-card shadow="hover" class="history-table-card">
       <template #header>
         <div class="card-header">
-          <span>历史数据趋势</span>
+          <span>历史数据记录</span>
           <div class="chart-controls">
             <el-radio-group v-model="timeRange" @change="fetchHistoryData">
-              <el-radio-button label="1h">1小时</el-radio-button>
-              <el-radio-button label="6h">6小时</el-radio-button>
-              <el-radio-button label="24h">24小时</el-radio-button>
-              <el-radio-button label="7d">7天</el-radio-button>
+              <el-radio-button value="1h">1小时</el-radio-button>
+              <el-radio-button value="6h">6小时</el-radio-button>
+              <el-radio-button value="24h">24小时</el-radio-button>
+              <el-radio-button value="7d">7天</el-radio-button>
             </el-radio-group>
           </div>
         </div>
       </template>
       
-      <div class="chart-container">
-        <TemperatureChart 
-          :device-vid="deviceInfo.vid" 
-          :time-range="timeRange" 
-          :show-title="false" 
-        />
-      </div>
+      <el-table v-loading="loadingHistoryData" :data="historyData" style="width: 100%" stripe>
+        <el-table-column prop="timestamp" label="时间" width="180">
+          <template #default="{ row }">
+            {{ row.timestamp ? formatDate(row.timestamp) : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="tin" label="厢内温度(℃)" width="120" />
+        <el-table-column prop="tout" label="厢外温度(℃)" width="120" />
+        <el-table-column prop="lxin" label="光照强度(lux)" width="130" />
+        <el-table-column prop="vStatus" label="设备状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.vStatus === 0 ? 'success' : 'warning'">
+              {{ row.vStatus === 0 ? '正常' : '异常' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-card>
   </div>
 </template>
@@ -116,7 +126,6 @@ import { ElMessage } from 'element-plus'
 import { getDeviceDetail, getDeviceHistoryData } from '@/api/device'
 import type { DeviceInfo } from '@/types/api'
 import { formatDate } from '@/utils/date'
-import TemperatureChart from '@/components/charts/TemperatureChart.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -134,13 +143,34 @@ const deviceInfo = ref<DeviceInfo>({
   currentData: undefined
 })
 const timeRange = ref('1h')
+const historyData = ref<any[]>([])
+const loadingHistoryData = ref(false)
 
 // 获取设备详情
 const fetchDeviceDetail = async () => {
   try {
     const vid = route.params.vid as string
-    const response = await getDeviceDetail(vid)
-    deviceInfo.value = response
+    const response: any = await getDeviceDetail(vid)
+    
+    // 处理响应数据，兼容不同格式
+    let deviceData = response
+    if (response && response.code !== undefined) {
+      // 如果响应遵循标准格式 { code, msg, data }
+      deviceData = response.data
+    }
+    
+    // 数据标准化：确保使用正确的字段名
+    deviceInfo.value = {
+      ...deviceData,
+      // 确保时间字段存在
+      lastOnlineTime: deviceData.lastOnlineTime || deviceData.lastOnline_time || deviceData.last_online_time || deviceData.lastHeartbeat || '-',
+      createTime: deviceData.createTime || deviceData.create_time || deviceData.create_time || '-',
+      // 确保其他可能的字段映射正确
+      deviceName: deviceData.deviceName || deviceData.device_name || deviceData.name,
+      deviceType: deviceData.deviceType || deviceData.device_type || deviceData.type,
+      location: deviceData.location || deviceData.loc || deviceData.place || '-',
+      remarks: deviceData.remarks || deviceData.remark || deviceData.description || '-'
+    }
   } catch (error) {
     console.error('获取设备详情失败:', error)
     ElMessage.error('获取设备详情失败')
@@ -149,15 +179,38 @@ const fetchDeviceDetail = async () => {
 
 // 获取历史数据
 const fetchHistoryData = async () => {
+  loadingHistoryData.value = true
   try {
     const vid = route.params.vid as string
     const params = {
       timeRange: timeRange.value
     }
-    await getDeviceHistoryData(vid, params)
+    const response: any = await getDeviceHistoryData(vid, params)
+    
+    // 处理响应数据，兼容不同格式
+    let responseData = response
+    if (response && response.code !== undefined) {
+      // 如果响应遵循标准格式 { code, msg, data }
+      responseData = response.data
+    }
+    
+    // 检查返回的数据格式并设置到historyData
+    if (Array.isArray(responseData)) {
+      // 如果直接返回数组
+      historyData.value = responseData
+    } else if (responseData && responseData.list && Array.isArray(responseData.list)) {
+      // 如果返回的是包含list的对象
+      historyData.value = responseData.list
+    } else {
+      // 其他情况，直接赋值（可能为空数组）
+      historyData.value = []
+    }
   } catch (error) {
     console.error('获取历史数据失败:', error)
     ElMessage.error('获取历史数据失败')
+    historyData.value = [] // 错误时清空历史数据
+  } finally {
+    loadingHistoryData.value = false
   }
 }
 
@@ -285,7 +338,5 @@ onMounted(() => {
   margin-top: 20px;
 }
 
-.chart-container {
-  height: 400px;
-}
+
 </style>

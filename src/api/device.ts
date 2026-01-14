@@ -7,7 +7,7 @@ export function getDeviceList(params: PageParams): Promise<PageResult<DeviceInfo
 }
 
 // 获取设备详情
-export function getDeviceDetail(vid: string): Promise<DeviceInfo> {
+export function getDeviceDetail(vid: string): Promise<ResponseData<DeviceInfo>> {
   return service.get(`http://localhost:8080/api/device/detail/${vid}`)
 }
 

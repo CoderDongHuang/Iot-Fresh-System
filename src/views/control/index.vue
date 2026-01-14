@@ -233,8 +233,15 @@ const fetchDeviceDetail = async (deviceId: string) => {
       return
     }
     
-    const response = await getDeviceDetail(deviceId)
-    selectedDevice.value = response
+    const response: any = await getDeviceDetail(deviceId)
+    // 检查响应格式
+    if (response && response.code !== undefined) {
+      // 标准格式: { code: 200, msg: 'success', data: DeviceInfo }
+      selectedDevice.value = response.data
+    } else {
+      // 直接格式: DeviceInfo
+      selectedDevice.value = response
+    }
   } catch (error) {
     console.error('获取设备详情失败:', error)
     ElMessage.error('获取设备详情失败')
