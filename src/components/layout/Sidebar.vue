@@ -44,12 +44,9 @@ const activeMenu = computed(() => route.path)
 
 <style scoped>
 .top-menu {
-  background: rgba(25, 40, 70, 0.7) !important;
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(41, 121, 255, 0.3) !important;
-  box-shadow: 
-    0 4px 20px rgba(5, 20, 45, 0.5),
-    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
+  background: var(--card-bg) !important;
+  border-bottom: 1px solid var(--el-border-color-light) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   padding: 0 20px !important;
   height: 60px !important;
   z-index: 1000;
@@ -62,20 +59,20 @@ const activeMenu = computed(() => route.path)
   line-height: 60px !important;
   
   .el-menu-item {
-    color: #a0b8d8 !important;
+    color: var(--text-color-secondary) !important;
     height: 60px !important;
     line-height: 60px !important;
     border-bottom: 2px solid transparent !important;
     
     &:hover {
-      color: #e6f0ff !important;
-      background: rgba(41, 121, 255, 0.1) !important;
+      color: var(--text-color-primary) !important;
+      background: var(--el-fill-color-light) !important;
     }
     
     &.is-active {
-      color: #00e676 !important;
-      background: rgba(41, 121, 255, 0.2) !important;
-      border-bottom: 2px solid #00e676 !important;
+      color: var(--color-accent-blue) !important;
+      background: var(--el-fill-color-light) !important;
+      border-bottom: 2px solid var(--color-accent-blue) !important;
     }
   }
 }

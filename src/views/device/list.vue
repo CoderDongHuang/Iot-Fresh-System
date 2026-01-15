@@ -130,6 +130,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, Search, ArrowDown } from '@element-plus/icons-vue'
 import { getDeviceList, getDeviceStatusStats } from '@/api/device'
+import { exportSingleToCSV } from '@/utils/export'
 import type { DeviceInfo } from '@/types/api'
 import { formatDate } from '@/utils/date'
 
@@ -324,9 +325,21 @@ const viewHistory = (device: DeviceInfo) => {
 
 // 导出数据
 const exportData = (device: DeviceInfo) => {
-  // 实现数据导出功能
-  console.log('导出设备数据:', device)
-  ElMessage.info('数据导出功能待实现')
+  const headers = ['设备VID', '设备名称', '设备类型', '位置', '状态', '最后在线时间', '创建时间', '备注']
+  const headerMapping = {
+    vid: '设备VID',
+    deviceName: '设备名称', 
+    deviceType: '设备类型',
+    location: '位置',
+    status: '状态',
+    lastOnlineTime: '最后在线时间',
+    createTime: '创建时间',
+    remarks: '备注'
+  }
+  const filename = `设备数据_${device.vid}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+  
+  exportSingleToCSV(device, headers, headerMapping, filename)
+  ElMessage.success(`设备 ${device.deviceName || device.vid} 数据导出成功`)
 }
 
 // 初始化

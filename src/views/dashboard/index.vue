@@ -225,6 +225,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDashboardStatistics } from '@/api/dashboard'
 import { getDeviceList } from '@/api/device'
 import { getAlarmStatistics } from '@/api/alarm'
+import { exportToCSV } from '@/utils/export'
 import TemperatureChart from '@/components/charts/TemperatureChart.vue'
 import DevicePieChart from '@/components/charts/DevicePieChart.vue'
 import LightChart from '@/components/charts/LightChart.vue'
@@ -422,11 +423,29 @@ const handleExport = async () => {
       cancelButtonText: '取消',
       type: 'info',
     }).then(async () => {
-      // TODO: 实现导出逻辑
-      ElMessage.success('导出成功')
+      // 导出设备列表数据
+      const exportData = deviceList.value.map(item => ({
+        vid: item.vid,
+        deviceName: item.deviceName || '-',
+        deviceType: item.deviceType || '-',
+        location: item.location || '-',
+        status: item.status ? (typeof item.status === 'number' ? 
+          (item.status === 0 ? '离线' : item.status === 1 ? '在线' : '故障') : 
+          item.status.toString()) : '未知',
+        lastOnlineTime: item.lastOnlineTime || '-',
+        createTime: item.createTime || '-',
+        remarks: item.remarks || '-'
+      }))
+      
+      const headers = ['设备VID', '设备名称', '设备类型', '位置', '状态', '最后在线时间', '创建时间', '备注']
+      const filename = `设备状态数据_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+      
+      exportToCSV(exportData, headers, filename)
+      ElMessage.success('数据导出成功')
     })
   } catch (error) {
     console.error('导出失败:', error)
+    ElMessage.error('导出失败')
   }
 }
 
@@ -463,9 +482,9 @@ onUnmounted(() => {
 .dashboard-container {
   height: 100%;
   overflow-y: auto;
-  background: linear-gradient(135deg, #050e1a, #0a192f);
+  background: var(--color-primary-medium);
   padding: 20px;
-  color: #e6f0ff;
+  color: var(--text-color-primary);
 }
 
 .statistics-cards {
@@ -473,44 +492,51 @@ onUnmounted(() => {
 }
 
 .card-item {
-  margin-bottom: 20px;
-  background: rgba(25, 40, 70, 0.7) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(41, 121, 255, 0.3) !important;
-  box-shadow: 
-    0 4px 20px rgba(5, 20, 45, 0.5),
-    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
-  border-radius: 12px !important;
+  margin-bottom: 15px;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--el-border-color-light) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
+  cursor: pointer;
   
   &:hover {
-    border: 1px solid rgba(41, 121, 255, 0.6) !important;
-    box-shadow: 
-      0 6px 25px rgba(5, 20, 45, 0.7),
-      0 0 15px rgba(41, 121, 255, 0.3),
-      0 0 0 1px rgba(41, 121, 255, 0.3) inset;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--el-border-color) !important;
   }
   
   .card-content {
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
-    padding: 15px;
+    padding: 16px;
     
     .card-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-right: 15px;
-      background: linear-gradient(135deg, #112240, #1e3a5f);
-      box-shadow: 0 4px 10px rgba(5, 20, 45, 0.3);
+      margin-right: 16px;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      color: #fff;
+      font-size: 20px;
       
-      .el-icon {
-        font-size: 24px;
-        color: #00e676; // 荧光绿
+      &[style*="background: #409EFF"] {
+        background: linear-gradient(135deg, #bbdefb, #64b5f6) !important;
+      }
+      
+      &[style*="background: #67C23A"] {
+        background: linear-gradient(135deg, #c8e6c9, #81c784) !important;
+      }
+      
+      &[style*="background: #E6A23C"] {
+        background: linear-gradient(135deg, #ffe0b2, #ffb74d) !important;
+      }
+      
+      &[style*="background: #909399"] {
+        background: linear-gradient(135deg, #e0e0e0, #bdbdbd) !important;
       }
     }
     
@@ -519,15 +545,14 @@ onUnmounted(() => {
       
       .card-title {
         font-size: 14px;
-        color: #a0b8d8; // 浅灰蓝
-        margin-bottom: 5px;
+        color: var(--text-color-secondary);
+        margin-bottom: 4px;
       }
       
       .card-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #e6f0ff; // 浅白色
-        text-shadow: 0 0 10px rgba(41, 121, 255, 0.5);
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-color-primary);
       }
     }
   }
@@ -537,12 +562,11 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     font-size: 12px;
-    color: #7a92b0; // 灰蓝色
-    padding: 0 15px 15px;
+    color: var(--text-color-tertiary);
+    padding: 0 16px 12px;
     
     .el-progress {
-      width: 100px;
-      background: rgba(41, 121, 255, 0.2) !important;
+      width: 60px;
     }
   }
 }
@@ -552,83 +576,63 @@ onUnmounted(() => {
 }
 
 .chart-card {
-  height: 350px;
-  background: rgba(15, 30, 55, 0.6) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(41, 121, 255, 0.3) !important;
-  box-shadow: 
-    0 4px 20px rgba(5, 20, 45, 0.5),
-    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
-  border-radius: 12px !important;
-  padding: 15px;
+  height: 300px;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--el-border-color-light) !important;
+  border-radius: 8px !important;
+  padding: 16px;
+  margin-bottom: 20px;
   transition: all 0.3s ease;
   
   &:hover {
-    border: 1px solid rgba(41, 121, 255, 0.6) !important;
-    box-shadow: 
-      0 6px 25px rgba(5, 20, 45, 0.7),
-      0 0 15px rgba(41, 121, 255, 0.3),
-      0 0 0 1px rgba(41, 121, 255, 0.3) inset;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
   
   .chart-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(41, 121, 255, 0.2);
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--el-border-color-light);
     
     span {
-      font-weight: bold;
-      color: #e6f0ff; // 浅白色
+      font-weight: 600;
+      color: var(--text-color-primary);
       font-size: 16px;
     }
     
     .chart-controls {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
     }
   }
 }
 
 .device-table {
-  background: rgba(15, 30, 55, 0.6) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(41, 121, 255, 0.3) !important;
-  box-shadow: 
-    0 4px 20px rgba(5, 20, 45, 0.5),
-    0 0 0 1px rgba(41, 121, 255, 0.2) inset;
-  border-radius: 12px !important;
-  padding: 15px;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    border: 1px solid rgba(41, 121, 255, 0.6) !important;
-    box-shadow: 
-      0 6px 25px rgba(5, 20, 45, 0.7),
-      0 0 15px rgba(41, 121, 255, 0.3),
-      0 0 0 1px rgba(41, 121, 255, 0.3) inset;
-  }
+  background: var(--card-bg) !important;
+  border: 1px solid var(--el-border-color-light) !important;
+  border-radius: 8px !important;
+  padding: 16px;
   
   .table-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(41, 121, 255, 0.2);
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--el-border-color-light);
     
     span {
-      font-weight: bold;
-      color: #e6f0ff; // 浅白色
+      font-weight: 600;
+      color: var(--text-color-primary);
       font-size: 16px;
     }
     
     .table-controls {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
   }
 }
@@ -636,27 +640,31 @@ onUnmounted(() => {
 // 响应式调整
 @media (max-width: 1200px) {
   .chart-card {
-    height: 320px;
+    height: 280px;
   }
 }
 
 @media (max-width: 768px) {
   .statistics-cards {
-    margin-bottom: 10px;
+    margin-bottom: 15px;
   }
   
   .chart-card {
-    height: 300px;
+    height: 260px;
   }
   
   .chart-header {
     flex-direction: column;
     align-items: flex-start !important;
-    gap: 10px;
+    gap: 8px;
   }
   
   .dashboard-container {
-    padding: 10px;
+    padding: 12px;
+  }
+  
+  .card-content {
+    padding: 12px !important;
   }
 }
 </style>

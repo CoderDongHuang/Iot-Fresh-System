@@ -21,6 +21,11 @@ export function getDeviceHistoryData(vid: string, params: any): Promise<DeviceDa
   return service.get(`http://localhost:8080/api/device/history-data/${vid}`, { params })
 }
 
+// 获取所有设备实时数据
+export function getAllDevicesRealTimeData(): Promise<DeviceData[]> {
+  return service.get('http://localhost:8080/api/device/all-real-time-data')
+}
+
 // 控制设备
 export function controlDevice(vid: string, command: any): Promise<ResponseData> {
   return service.post(`http://localhost:8080/api/device/control/${vid}`, command)
