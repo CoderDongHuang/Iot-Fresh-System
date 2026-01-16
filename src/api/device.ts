@@ -17,8 +17,8 @@ export function getDeviceRealTimeData(vid: string): Promise<DeviceData> {
 }
 
 // 获取设备历史数据
-export function getDeviceHistoryData(vid: string, params: any): Promise<DeviceData[]> {
-  return service.get(`http://localhost:8080/api/device/history-data/${vid}`, { params })
+export function getDeviceHistoryData(params: any): Promise<PageResult<DeviceData>> {
+  return service.get('http://localhost:8080/api/device/history-data', { params })
 }
 
 // 获取所有设备实时数据

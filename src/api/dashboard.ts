@@ -43,3 +43,8 @@ export function getDeviceStatusDistribution() {
 export function getRecentAlarms() {
   return service.get('http://localhost:8080/api/dashboard/recent-alarms')
 }
+
+// 获取数据统计
+export function getDataStatistics(params: any): Promise<any> {
+  return service.get('http://localhost:8080/api/dashboard/data-statistics', { params })
+}
