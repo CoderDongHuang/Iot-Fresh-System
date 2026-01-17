@@ -321,7 +321,7 @@ const getLevelType = (level: string) => {
   switch (level) {
     case 'critical': return 'danger'
     case 'high': return 'warning'
-    case 'medium': return 'orange'
+    case 'medium': return 'warning'
     case 'low': return 'info'
     default: return 'info'
   }
