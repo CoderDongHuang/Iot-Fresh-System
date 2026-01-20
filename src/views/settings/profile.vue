@@ -10,20 +10,13 @@
       <el-row :gutter="30">
         <el-col :span="8">
           <div class="avatar-container">
-            <el-avatar :size="120" :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f4c99b3a30486abba70jpeg.jpeg'" :key="userInfo.avatar" />
-            <div class="upload-btn">
-              <el-upload
-                class="avatar-uploader"
-                ref="uploadRef"
-                action="#"
-                :show-file-list="false"
-                :auto-upload="false"
-                :on-change="handleFileChange"
-              >
-                <el-button type="primary" size="small" circle class="upload-icon">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-              </el-upload>
+            <el-avatar :size="120" :src="getDefaultAvatar()" />
+            <div class="avatar-info">
+              <span class="avatar-text">当前头像</span>
+              <el-button type="primary" size="small" @click="showAvatarDialog = true" class="select-btn">
+                <el-icon><Edit /></el-icon>
+                选择头像
+              </el-button>
             </div>
           </div>
         </el-col>
@@ -160,62 +153,44 @@
       </el-form>
     </el-card>
     
-    <!-- 图像裁剪对话框 -->
+
+    <!-- 头像选择对话框 -->
     <el-dialog
-      v-model="showCropperDialog"
-      title="裁剪头像"
-      width="800px"
+      v-model="showAvatarDialog"
+      title="选择头像"
+      width="600px"
       :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      @close="cancelCrop"
-      destroy-on-close
+      @close="cancelAvatarSelect"
     >
-      <div v-if="objectUrl" class="image-cropper-container">
-        <div class="image-preview-wrapper">
-          <img 
-            ref="previewImageRef" 
-            :src="objectUrl" 
-            alt="头像预览" 
-            class="preview-image"
-            :style="{ 
-              transform: `scale(${scale}) rotate(${rotation}deg)`,
-              transformOrigin: 'center center'
-            }"
-            @load="initCropper"
-            @error="onImageError"
-            @mouseenter="onImageMouseEnter"
-          />
-          <div>
-            class="crop-area" 
-            :style="cropAreaStyle"
-          ></div>
-        </div>
-        <div class="controls">
-          <el-slider 
-            v-model="scale" 
-            :min="0.1" 
-            :max="2" 
-            :step="0.01" 
-            show-input
-            style="width: 300px; margin-right: 20px;"
-          />
-          <span>缩放: {{ scale.toFixed(2) }}</span>
+      <div class="avatar-selector">
+        <div class="avatar-grid">
+          <div 
+            v-for="avatar in avatarList" 
+            :key="avatar.id"
+            class="avatar-item"
+            :class="{ 'avatar-selected': selectedAvatar === avatar.url }"
+            @click="selectAvatar(avatar.url)"
+          >
+            <el-avatar :size="60" :src="avatar.url" />
+            <span class="avatar-name">{{ avatar.name }}</span>
+          </div>
         </div>
       </div>
+      
       <template #footer>
-        <el-button @click="rotateImage">旋转</el-button>
-        <el-button @click="cancelCrop">取消</el-button>
-        <el-button type="primary" @click="confirmCrop">确认裁剪</el-button>
+        <div class="dialog-footer">
+          <el-button @click="cancelAvatarSelect">取消</el-button>
+          <el-button type="primary" @click="confirmAvatarSelect">确定</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
-import { ElMessage, ElNotification } from 'element-plus'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Edit } from '@element-plus/icons-vue'
-import service from '@/api/http'
 
 
 
@@ -319,39 +294,16 @@ const fetchUserInfo = async () => {
     userInfo.phone = userData.phone || userData.phoneNumber || userData.phone_number || ''
     userInfo.department = userData.department || userData.dept || ''
     userInfo.position = userData.position || userData.jobTitle || ''
-    // 处理头像URL，区分不同类型的URL
-    let avatarUrl = userData.avatar || userData.headImg || userData.head_img || userData.avatarUrl || userData.avatar_url
-    console.log('原始头像URL:', avatarUrl)
-    console.log('从userData中获取的avatar字段:', userData.avatar)
-    
-    if (avatarUrl) {
-      if (avatarUrl.startsWith('data:image')) {
-        // 如果是base64格式，直接使用
-        userInfo.avatar = avatarUrl;
-        console.log('使用base64头像')
-      } else if (avatarUrl.startsWith('/')) {
-        // 如果是根路径开头的相对路径，加上基础API URL
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-        userInfo.avatar = `${baseUrl}${avatarUrl}`;
-        console.log('使用处理后的相对路径头像:', userInfo.avatar)
-      } else if (!avatarUrl.startsWith('http') && !avatarUrl.startsWith('//')) {
-        // 如果是其他相对路径，加上基础API URL
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-        userInfo.avatar = `${baseUrl}/${avatarUrl}`;
-        console.log('使用处理后的其他相对路径头像:', userInfo.avatar)
-      } else {
-        // 绝对路径，直接使用
-        userInfo.avatar = avatarUrl;
-        console.log('使用绝对路径头像')
-      }
+    // 使用用户选择的头像，如果数据库中有则使用，否则使用默认头像
+    const avatarUrl = userData.avatar || userData.headImg || userData.head_img || userData.avatarUrl || userData.avatar_url
+    if (avatarUrl && avatarList.some(avatar => avatar.url === avatarUrl)) {
+      userInfo.avatar = avatarUrl
+      selectedAvatar.value = avatarUrl
+      console.log('使用用户选择的头像:', avatarUrl)
     } else {
-      // 默认头像
-      userInfo.avatar = 'https://cube.elemecdn.com/0/88/03b0d39583f4c99b3a30486abba70jpeg.jpeg';
+      userInfo.avatar = getDefaultAvatar()
       console.log('使用默认头像')
     }
-    
-    console.log('最终设置的头像URL:', userInfo.avatar)
-    console.log('用户信息已更新:', userInfo)
   } catch (error: any) {
     console.error('获取用户信息失败:', error)
     console.error('错误详情:', error.message || error)
@@ -362,90 +314,24 @@ const fetchUserInfo = async () => {
 // 保存个人资料
 const saveProfile = async () => {
   try {
-    // 检查头像是否为base64格式，如果是，则需要特殊处理
-    if (userInfo.avatar && userInfo.avatar.startsWith('data:image')) {
-      // 对于base64格式的头像，尝试将其转换为文件并上传
-      try {
-        // 将base64转换为Blob
-        const arr = userInfo.avatar.split(',')
-        const mimeMatch = arr[0].match(/:(.*?);/)
-        if (!mimeMatch) {
-          throw new Error('无法解析头像MIME类型')
-        }
-        const mime = mimeMatch[1]
-        const bstr = atob(arr[1])
-        let n = bstr.length
-        const u8arr = new Uint8Array(n)
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n)
-        }
-        const avatarFile = new File([u8arr], `avatar_${Date.now()}.${mime.split('/')[1]}`, { type: mime })
-        
-        // 创建FormData来发送文件
-        const formData = new FormData()
-        formData.append('avatar', avatarFile)
-        
-        // 尝试上传头像
-        const avatarResponse = await service.post('/api/user/upload-avatar', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
-        
-        // 从响应中获取上传后的头像URL
-        const avatarUrl = avatarResponse.data?.data?.url || avatarResponse.data?.avatarUrl
-        
-        // 然后更新其他用户信息（包含新的头像URL）
-        const profileData = {
-          username: userInfo.username,
-          realName: userInfo.realName,
-          email: userInfo.email,
-          phone: userInfo.phone,
-          department: userInfo.department,
-          position: userInfo.position,
-          avatar: avatarUrl
-        }
-        
-        await updateUserProfile(profileData)
-      } catch (uploadError) {
-        console.error('头像上传失败，尝试直接保存用户信息:', uploadError)
-        // 如果头像上传失败，尝试直接保存其他用户信息，不包含头像字段以避免覆盖现有头像
-        const profileData = {
-          username: userInfo.username,
-          realName: userInfo.realName,
-          email: userInfo.email,
-          phone: userInfo.phone,
-          department: userInfo.department,
-          position: userInfo.position
-          // 注意：不包含avatar字段，这样后端可以选择性地更新字段而不改变头像
-        }
-        
-        await updateUserProfile(profileData)
-      }
-    } else {
-      // 如果头像不是base64格式（即URL），则按常规方式更新
-      // 动态构建请求对象，只包含有值的字段
-      const profileData: any = {
-        username: userInfo.username,
-        realName: userInfo.realName,
-        email: userInfo.email,
-        phone: userInfo.phone,
-        department: userInfo.department,
-        position: userInfo.position
-      }
-      
-      // 只有当头像有有效值时才包含它
-      if (userInfo.avatar && userInfo.avatar.trim() !== '' && !userInfo.avatar.startsWith('data:image')) {
-        profileData.avatar = userInfo.avatar
-      }
-      
-      await updateUserProfile(profileData)
+    // 保存用户信息，包含选择的头像URL
+    const profileData = {
+      username: userInfo.username,
+      realName: userInfo.realName,
+      email: userInfo.email,
+      phone: userInfo.phone,
+      department: userInfo.department,
+      position: userInfo.position,
+      avatar: userInfo.avatar || avatarList[0].url  // 保存头像URL到数据库
     }
     
+    console.log('保存个人资料，发送的数据:', profileData)
+    
+    await updateUserProfile(profileData)
     ElMessage.success('个人资料保存成功')
-  } catch (error) {
+  } catch (error: any) {
     console.error('保存个人资料失败:', error)
-    ElMessage.error('保存个人资料失败，请重试')
+    ElMessage.error(`保存个人资料失败: ${error.message || '未知错误'}`)
   }
 }
 
@@ -517,327 +403,68 @@ const resetPreferences = () => {
   ElMessage.info('偏好设置已重置')
 }
 
-// 裁剪相关状态
-const showCropperDialog = ref(false)
-let tempFile: File | null = null
-const objectUrl = ref<string | null>(null)
-const uploadRef = ref()
-
-// 新增裁剪功能所需的状态
-const previewImageRef = ref<HTMLImageElement>()
-const scale = ref(1) // 图像缩放比例
-const rotation = ref(0) // 图像旋转角度
-const cropSize = ref(200) // 裁剪区域大小 (像素)
-const imgNaturalWidth = ref(0)
-const imgNaturalHeight = ref(0)
-
-
-
-// 处理文件变化
-const handleFileChange = (file: any) => {
-  console.log('handleFileChange 被调用', file)
-  const rawFile = file.raw || file
+// 默认头像列表
+const avatarList = [
+  // 人物头像
+  { id: 1, url: 'https://cube.elemecdn.com/0/88/03b0d39583f4c99b3a30486abba70jpeg.jpeg', name: '默认头像1' },
+  { id: 2, url: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', name: '默认头像2' },
+  { id: 3, url: 'https://cube.elemecdn.com/9/c2/f0ee8a3c7c9638a54940382568c9dpng.png', name: '默认头像3' },
+  { id: 4, url: 'https://cube.elemecdn.com/d/b9/43b5c5e1c185d6b7c9d7f527380fdpng.png', name: '默认头像4' },
   
-  if (!rawFile) {
-    console.error('未找到原始文件', file)
-    ElMessage.error('未找到原始文件')
-    return
-  }
+  // 动物头像
+  { id: 5, url: 'https://cube.elemecdn.com/4/ea/346d7d6e6e4e6c3b6a5d5c5c5c5c5c5c.png', name: '猫咪' },
+  { id: 6, url: 'https://cube.elemecdn.com/0/6a/5a3c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '狗狗' },
+  { id: 7, url: 'https://cube.elemecdn.com/9/94/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '兔子' },
+  { id: 8, url: 'https://cube.elemecdn.com/1/34/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '熊猫' },
   
-  console.log('获取到原始文件:', rawFile)
-  
-  // 验证文件类型和大小
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-  const isImage = allowedTypes.includes(rawFile.type)
-  const isLt2M = rawFile.size / 1024 / 1024 < 2
+  // 抽象头像
+  { id: 9, url: 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png', name: '抽象头像1' },
+  { id: 10, url: 'https://cube.elemecdn.com/6/94/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '抽象头像2' },
+  { id: 11, url: 'https://cube.elemecdn.com/3/27/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '抽象头像3' },
+  { id: 12, url: 'https://cube.elemecdn.com/b/7f/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '抽象头像4' }
+]
 
-  if (!isImage) {
-    console.error('文件类型不支持:', rawFile.type)
-    ElMessage.error('只能上传 JPG/PNG/GIF/WEBP 格式的图片!')
-    return
+// 头像选择对话框状态
+const showAvatarDialog = ref(false)
+const selectedAvatar = ref('')
+
+// 获取默认头像
+const getDefaultAvatar = () => {
+  return selectedAvatar.value || avatarList[0].url
+}
+
+// 选择头像
+const selectAvatar = (avatarUrl: string) => {
+  selectedAvatar.value = avatarUrl
+}
+
+// 确认头像选择
+const confirmAvatarSelect = () => {
+  if (selectedAvatar.value) {
+    userInfo.avatar = selectedAvatar.value
+    console.log('已选择头像:', selectedAvatar.value)
+    ElMessage.success('头像选择成功')
   }
-  if (!isLt2M) {
-    console.error('文件太大:', rawFile.size)
-    ElMessage.error('图片大小不能超过 2MB!')
-    return
-  }
-  
-  console.log('文件验证通过，准备打开裁剪对话框')
-  
-  // 保存临时文件并创建对象URL用于预览
-  tempFile = rawFile
-  objectUrl.value = URL.createObjectURL(rawFile)
-  console.log('创建对象URL:', objectUrl.value)
-  
-  // 清除上传组件中的文件列表，避免显示文件名
-  nextTick(() => {
-    if (uploadRef.value) {
-      uploadRef.value!.clearFiles()
-      console.log('已清除上传文件列表')
-    }
-    
-    // 显示对话框
-     showCropperDialog.value = true
-     console.log('裁剪对话框已打开，objectUrl:', objectUrl.value)
-     // 使用 nextTick 等待 DOM 更新，然后初始化裁剪器
-     nextTick(() => {
-       // 使用强制初始化函数来确保裁剪器正确初始化
-       setTimeout(() => {
-         forceInitCropper()
-       }, 300) // 给图像和对话框一些时间来渲染
-     })
-  })
+  showAvatarDialog.value = false
 }
 
-// 计算属性：裁剪区域样式
-const cropAreaStyle = computed(() => {
-  // 固定裁剪框在容器中央
-  const containerSize = 400 // 预览容器尺寸
-  const left = (containerSize - cropSize.value) / 2
-  const top = (containerSize - cropSize.value) / 2
-  
-  return {
-    position: 'absolute',
-    left: `${left}px`,
-    top: `${top}px`,
-    width: `${cropSize.value}px`,
-    height: `${cropSize.value}px`,
-    border: '2px solid #fff',
-    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-    zIndex: 10,
-    'pointer-events': 'none' // 禁用鼠标事件，因为我们不需要拖动
-  }
-})
-
-// 初始化裁剪器
-const initCropper = () => {
-  console.log('initCropper 被调用')
-  const img = previewImageRef.value
-  if (img) {
-    console.log('图像元素:', img)
-    console.log('图像自然尺寸:', img.naturalWidth, 'x', img.naturalHeight)
-    imgNaturalWidth.value = img.naturalWidth
-    imgNaturalHeight.value = img.naturalHeight
-    
-    // 根据图片尺寸调整初始缩放
-    const containerSize = 400
-    const scaleX = containerSize / imgNaturalWidth.value
-    const scaleY = containerSize / imgNaturalHeight.value
-    scale.value = Math.min(scaleX, scaleY) * 0.9 // 留一点边距
-    console.log('设置初始缩放:', scale.value)
-  } else {
-    console.error('无法获取图像元素')
-  }
-}
-
-// 强制初始化裁剪器（如果图像加载事件没有触发）
-const forceInitCropper = () => {
-  console.log('强制初始化裁剪器')
-  // 使用 nextTick 确保 DOM 更新完成
-  nextTick(() => {
-    const img = previewImageRef.value
-    if (img) {
-      console.log('图像元素存在，complete状态:', img.complete, 'naturalWidth:', img.naturalWidth, 'naturalHeight:', img.naturalHeight)
-      if (img.complete) {
-        // 图像已经加载完成
-        console.log('图像已加载完成，初始化裁剪器')
-        imgNaturalWidth.value = img.naturalWidth
-        imgNaturalHeight.value = img.naturalHeight
-        
-        // 根据图片尺寸调整初始缩放
-        const containerSize = 400
-        const scaleX = containerSize / imgNaturalWidth.value
-        const scaleY = containerSize / imgNaturalHeight.value
-        scale.value = Math.min(scaleX, scaleY) * 0.9 // 留一点边距
-        console.log('设置初始缩放:', scale.value)
-      } else {
-        // 图像还在加载，设置定时器继续检查
-        console.log('图像仍在加载中，等待...')
-        setTimeout(forceInitCropper, 100)
-      }
-    } else {
-      console.log('图像元素不存在，可能DOM还未更新')
-      // 再次尝试
-      setTimeout(forceInitCropper, 100)
-    }
-  })
-}
-
-// 图像加载错误处理
-const onImageError = (e: Event) => {
-  console.error('图像加载失败:', e)
-  console.log('当前objectUrl:', objectUrl.value)
-}
-
-// 图像鼠标悬停处理（调试用）
-const onImageMouseEnter = () => {
-  console.log('鼠标悬停在图像上')
-  const img = previewImageRef.value
-  if (img) {
-    console.log('图像状态 - complete:', img.complete, 'width:', img.width, 'height:', img.height, 'naturalWidth:', img.naturalWidth, 'naturalHeight:', img.naturalHeight)
-  }
-}
-
-// 旋转图像
-const rotateImage = () => {
-  rotation.value = (rotation.value + 90) % 360
+// 取消头像选择
+const cancelAvatarSelect = () => {
+  selectedAvatar.value = userInfo.avatar || ''
+  showAvatarDialog.value = false
 }
 
 
 
-// 确认裁剪
-const confirmCrop = async () => {
-  console.log('确认裁剪被调用')
-  try {
-    if (previewImageRef.value) {
-      // 创建canvas元素进行图像裁剪
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      
-      if (!ctx) {
-        throw new Error('无法获取canvas上下文')
-      }
-
-      // 设置canvas尺寸为头像尺寸
-      const targetSize = 200
-      canvas.width = targetSize
-      canvas.height = targetSize
-      
-      const img = previewImageRef.value
-      
-      // 创建临时canvas来处理旋转
-      const tempCanvas = document.createElement('canvas')
-      const tempCtx = tempCanvas.getContext('2d')
-      
-      if (!tempCtx) {
-        throw new Error('无法获取临时canvas上下文')
-      }
-      
-      // 计算旋转后的图像尺寸
-      const angleRad = rotation.value * Math.PI / 180
-      const sin = Math.abs(Math.sin(angleRad))
-      const cos = Math.abs(Math.cos(angleRad))
-      
-      // 计算旋转后图像的实际尺寸
-      const rotatedWidth = img.naturalWidth * cos + img.naturalHeight * sin
-      const rotatedHeight = img.naturalWidth * sin + img.naturalHeight * cos
-      
-      // 设置临时canvas尺寸
-      tempCanvas.width = rotatedWidth
-      tempCanvas.height = rotatedHeight
-      
-      // 在临时canvas上绘制旋转后的图像
-      tempCtx.clearRect(0, 0, rotatedWidth, rotatedHeight)
-      tempCtx.save()
-      tempCtx.translate(rotatedWidth / 2, rotatedHeight / 2)
-      tempCtx.rotate(angleRad)
-      tempCtx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2)
-      tempCtx.restore()
-      
-      // 计算缩放后的尺寸
-      const scaledWidth = rotatedWidth * scale.value
-      const scaledHeight = rotatedHeight * scale.value
-      
-      // 确定从旋转后的图像中裁剪的区域
-      let sx, sy, sWidth, sHeight // 源图像的裁剪参数
-      let dx = 0, dy = 0, dWidth, dHeight // 目标画布的绘制参数
-      
-      // 根据缩放级别确定裁剪区域
-      if (scaledWidth > targetSize || scaledHeight > targetSize) {
-        // 图像太大，需要裁剪中心部分
-        sx = (rotatedWidth - targetSize / scale.value) / 2
-        sy = (rotatedHeight - targetSize / scale.value) / 2
-        sWidth = targetSize / scale.value
-        sHeight = targetSize / scale.value
-        dWidth = targetSize
-        dHeight = targetSize
-      } else {
-        // 图像较小，居中放置
-        sx = 0
-        sy = 0
-        sWidth = rotatedWidth
-        sHeight = rotatedHeight
-        dWidth = scaledWidth
-        dHeight = scaledHeight
-        dx = (targetSize - scaledWidth) / 2
-        dy = (targetSize - scaledHeight) / 2
-      }
-      
-      // 在目标canvas上绘制裁剪后的图像
-      ctx.fillStyle = '#ffffff' // 白色背景
-      ctx.fillRect(0, 0, targetSize, targetSize)
-      
-      // 从旋转后的图像中裁剪并绘制到目标canvas
-      ctx.drawImage(
-        tempCanvas,
-        sx, sy, sWidth, sHeight,  // 源图像区域
-        dx, dy, dWidth, dHeight   // 目标画布区域
-      )
-      
-      // 将canvas转换为base64图像数据
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
-      
-      if (dataUrl) {
-        console.log('裁剪数据获取成功:', dataUrl.substring(0, 50) + '...')
-        userInfo.avatar = dataUrl
-        console.log('头像已更新到userInfo:', userInfo.avatar.substring(0, 50) + '...')
-        ElMessage.success('头像已更新')
-      }
-    }
-    
-    showCropperDialog.value = false
-    if (objectUrl.value) {
-      URL.revokeObjectURL(objectUrl.value) // 清理对象URL
-      objectUrl.value = null
-    }
-    tempFile = null
-  } catch (error) {
-    console.error('裁剪过程中发生错误:', error)
-    ElMessage.error('裁剪失败，请重试')
-    showCropperDialog.value = false
-  }
-}
 
 
 
-// 取消裁剪
-const cancelCrop = () => {
-  showCropperDialog.value = false
-  // 确保在下一个tick中清理资源，避免组件仍在使用时就被销毁
-  setTimeout(() => {
-    if (objectUrl.value) {
-      URL.revokeObjectURL(objectUrl.value) // 清理对象URL
-      objectUrl.value = null
-    }
-    tempFile = null
-  }, 100)
-}
+
+
 
 // 组件挂载时获取用户信息
 onMounted(() => {
   fetchUserInfo()
-})
-
-// 监视 objectUrl 变化，一旦变化就尝试初始化裁剪器
-watch(() => objectUrl.value, (newVal) => {
-  if (newVal) {
-    console.log('objectUrl 发生变化，尝试初始化裁剪器')
-    // 等待DOM更新后初始化
-    nextTick(() => {
-      setTimeout(() => {
-        forceInitCropper()
-      }, 200)
-    })
-  }
-}, { immediate: false })
-
-// 组件卸载时清理资源
-onUnmounted(() => {
-  // 清理可能存在的对象URL
-  if (objectUrl.value) {
-    URL.revokeObjectURL(objectUrl.value)
-    objectUrl.value = null
-  }
 })
 </script>
 
@@ -846,46 +473,6 @@ onUnmounted(() => {
   padding: 20px;
   background: var(--color-primary-medium);
   min-height: 100vh;
-}
-
-.image-cropper-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-.image-preview-wrapper {
-  position: relative;
-  width: 400px;
-  height: 400px;
-  overflow: hidden;
-  border: 1px solid #ddd;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #f5f5f5;
-  margin-bottom: 20px;
-}
-
-.preview-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  transform-origin: center;
-  transition: transform 0.1s ease;
-  display: block; /* 确保图像正确显示 */
-}
-
-.crop-area {
-  box-sizing: border-box;
-  pointer-events: auto;
-}
-
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .profile-card, .password-card, .preferences-card {
@@ -900,30 +487,104 @@ onUnmounted(() => {
   align-items: center;
 }
 
+/* 头像容器样式 */
 .avatar-container {
   position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  gap: 15px;
 }
 
-.upload-btn {
-  position: absolute;
-  margin-left: 80px;
-  margin-top: 80px;
+.avatar-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.upload-icon {
-  width: 30px;
-  height: 30px;
-  padding: 0;
+.avatar-text {
+  font-size: 14px;
+  color: #606266;
+}
+
+.select-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .el-form-item {
   margin-bottom: 20px;
 }
 
-.cropper-container {
+/* 头像选择器样式 */
+.avatar-selector {
+  padding: 20px 0;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.avatar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px;
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.avatar-item:hover {
+  border-color: #409eff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+}
+
+.avatar-item.avatar-selected {
+  border-color: #409eff;
+  background: #f0f7ff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+.avatar-name {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #606266;
   text-align: center;
+}
+
+/* 对话框底部 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+  }
+  
+  .avatar-item {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .avatar-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
 }
 </style>
