@@ -403,25 +403,25 @@ const resetPreferences = () => {
   ElMessage.info('偏好设置已重置')
 }
 
-// 默认头像列表
+// 默认头像列表 - 使用真实可用的头像图片
 const avatarList = [
-  // 人物头像
-  { id: 1, url: 'https://cube.elemecdn.com/0/88/03b0d39583f4c99b3a30486abba70jpeg.jpeg', name: '默认头像1' },
-  { id: 2, url: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png', name: '默认头像2' },
-  { id: 3, url: 'https://cube.elemecdn.com/9/c2/f0ee8a3c7c9638a54940382568c9dpng.png', name: '默认头像3' },
-  { id: 4, url: 'https://cube.elemecdn.com/d/b9/43b5c5e1c185d6b7c9d7f527380fdpng.png', name: '默认头像4' },
+  // 人物头像（使用可靠的彩色头像）
+  { id: 1, url: 'https://img.icons8.com/color/96/000000/user-male.png', name: '男生头像' },
+  { id: 2, url: 'https://img.icons8.com/color/96/000000/user-female.png', name: '女生头像1' },
+  { id: 3, url: 'https://img.icons8.com/color/96/000000/student-female.png', name: '女生头像2' },
+  { id: 4, url: 'https://img.icons8.com/color/96/000000/businessman.png', name: '商务头像' },
   
-  // 动物头像
-  { id: 5, url: 'https://cube.elemecdn.com/4/ea/346d7d6e6e4e6c3b6a5d5c5c5c5c5c5c.png', name: '猫咪' },
-  { id: 6, url: 'https://cube.elemecdn.com/0/6a/5a3c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '狗狗' },
-  { id: 7, url: 'https://cube.elemecdn.com/9/94/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '兔子' },
-  { id: 8, url: 'https://cube.elemecdn.com/1/34/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '熊猫' },
+  // 动物头像（使用知名网站的动物头像）
+  { id: 5, url: 'https://img.icons8.com/color/96/000000/cat.png', name: '猫咪' },
+  { id: 6, url: 'https://img.icons8.com/color/96/000000/dog.png', name: '狗狗' },
+  { id: 7, url: 'https://img.icons8.com/color/96/000000/rabbit.png', name: '兔子' },
+  { id: 8, url: 'https://img.icons8.com/color/96/000000/panda.png', name: '熊猫' },
   
-  // 抽象头像
-  { id: 9, url: 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png', name: '抽象头像1' },
-  { id: 10, url: 'https://cube.elemecdn.com/6/94/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '抽象头像2' },
-  { id: 11, url: 'https://cube.elemecdn.com/3/27/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '抽象头像3' },
-  { id: 12, url: 'https://cube.elemecdn.com/b/7f/5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.png', name: '抽象头像4' }
+  // 其他头像（使用知名图标库）
+  { id: 9, url: 'https://img.icons8.com/color/96/000000/user-male-circle.png', name: '圆形头像1' },
+  { id: 10, url: 'https://img.icons8.com/color/96/000000/user-female-circle.png', name: '圆形头像2' },
+  { id: 11, url: 'https://img.icons8.com/color/96/000000/administrator-male.png', name: '管理员' },
+  { id: 12, url: 'https://img.icons8.com/color/96/000000/guest-male.png', name: '访客' }
 ]
 
 // 头像选择对话框状态
