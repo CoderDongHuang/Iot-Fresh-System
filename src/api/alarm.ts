@@ -28,6 +28,11 @@ export function ignoreAlarm(alarmId: number): Promise<ResponseData> {
   return service.post(`http://localhost:8080/api/alarm/ignore/${alarmId}`)
 }
 
+// 关闭报警
+export function closeAlarm(alarmId: number): Promise<ResponseData> {
+  return service.post(`http://localhost:8080/api/alarm/close/${alarmId}`)
+}
+
 // 清除全部报警
 export function clearAllAlarms(): Promise<ResponseData> {
   return service.delete('http://localhost:8080/api/alarm/clear-all')
@@ -41,6 +46,20 @@ export function getAlarmDetail(alarmId: number): Promise<any> {
 // 获取报警设置
 export function getAlarmSettings(): Promise<ResponseData<any>> {
   return service.get('http://localhost:8080/api/alarm/settings')
+}
+
+// 获取报警处理记录
+export function getAlarmHistory(alarmId: number): Promise<ResponseData<any>> {
+  return service.get(`http://localhost:8080/api/alarm/history/${alarmId}`)
+}
+
+// 添加报警处理记录
+export function addAlarmHistory(alarmId: number, data: {
+  action: string
+  operator: string
+  remark?: string
+}): Promise<ResponseData> {
+  return service.post(`http://localhost:8080/api/alarm/history/${alarmId}`, data)
 }
 
 // 更新报警设置
