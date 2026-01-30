@@ -432,6 +432,13 @@ const resolveAlarm = async (alarm: any) => {
     const response = await apiResolveAlarm(alarm.id)
     // 检查响应是否成功
     if (response) {
+      // 添加处理记录到历史
+      await addAlarmHistory(alarm.id, {
+        action: '处理报警',
+        operator: '当前用户',
+        remark: '通过表格行按钮处理报警，报警已处理'
+      })
+      
       ElMessage.success('报警处理成功')
       fetchAlarms() // 刷新列表
     } else {
@@ -455,6 +462,13 @@ const closeAlarm = async (alarm: any) => {
     const response = await apiCloseAlarm(alarm.id)
     // 检查响应是否成功
     if (response) {
+      // 添加关闭记录到历史
+      await addAlarmHistory(alarm.id, {
+        action: '关闭报警',
+        operator: '当前用户',
+        remark: '通过表格行按钮关闭报警，报警已解除'
+      })
+      
       ElMessage.success('报警已关闭')
       fetchAlarms() // 刷新列表
     } else {
