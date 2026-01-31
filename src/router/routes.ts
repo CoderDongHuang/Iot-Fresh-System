@@ -27,6 +27,7 @@ const routes: RouteRecordRaw[] = [
       ] },
       { path: 'settings', name: 'Settings', redirect: '/settings/profile', meta: { title: '系统设置', icon: 'settings' }, children: [
         { path: 'profile', name: 'Profile', component: () => import('@/views/settings/profile.vue'), meta: { title: '个人设置', icon: 'user' } },
+        { path: 'notification', name: 'Notification', component: () => import('@/views/alarm/NotificationSettings.vue'), meta: { title: '通知设置', icon: 'bell' } },
         { path: 'system', name: 'System', component: () => import('@/views/settings/system.vue'), meta: { title: '系统设置', icon: 'system', roles: ['admin'] } },
       ] },
     ],

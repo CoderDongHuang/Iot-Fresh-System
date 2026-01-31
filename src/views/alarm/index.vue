@@ -102,10 +102,24 @@
               </template>
             </el-input>
             
-            <el-button @click="resetFilters" type="default" size="default">
-              <el-icon><Refresh /></el-icon>
-              重置
+            <el-button type="primary" @click="goToNotificationSettings" style="margin-left: 10px;">
+              <el-icon><Bell /></el-icon>
+              通知设置
             </el-button>
+            
+            <el-button @click="resetFilters" type="default" size="default">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+          
+          <el-tag :type="getWsStatusType()" size="small" style="margin-left: 10px;">
+            WebSocket: {{ wsStatus }}
+          </el-tag>
+          
+          <el-button @click="testWebSocket" type="info" size="small" style="margin-left: 10px;">
+            <el-icon><Connection /></el-icon>
+            测试连接
+          </el-button>
           </div>
           
           <div class="alarm-actions">
@@ -276,8 +290,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Warning, Clock, SuccessFilled, Close, View, Check, Search, Refresh } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { Bell, Warning, Clock, SuccessFilled, Close, View, Check, Search, Refresh, Plus, Connection } from '@element-plus/icons-vue'
 import { getAlarms, resolveAlarm as apiResolveAlarm, ignoreAlarm as apiIgnoreAlarm, closeAlarm as apiCloseAlarm, clearAllAlarms as apiClearAllAlarms, getAlarmStatistics, getAlarmHistory, addAlarmHistory } from '@/api/alarm'
 import { useWebSocket } from '@/composables/useWebSocket'
 
@@ -285,7 +299,16 @@ import { useWebSocket } from '@/composables/useWebSocket'
 const router = useRouter()
 
 // WebSocket
-const { connect, disconnect, onMessage, send } = useWebSocket()
+const { connect, disconnect, onMessage, send, connected } = useWebSocket()
+
+// WebSocket连接状态
+const wsStatus = ref('disconnected')
+
+// WebSocket连接日志
+const logWebSocketStatus = (status: string) => {
+  console.log(`WebSocket状态: ${status}`)
+  wsStatus.value = status
+}
 
 // 响应式数据
 const alarms = ref<any[]>([])
@@ -419,6 +442,45 @@ const resetFilters = () => {
   }
   pagination.value.currentPage = 1
   fetchAlarms()
+}
+
+// 跳转到通知设置页面
+const goToNotificationSettings = () => {
+  router.push('/settings/notification')
+}
+
+// 测试WebSocket连接
+const testWebSocket = () => {
+  if (!connected.value) {
+    ElMessage.warning('WebSocket未连接，请先连接')
+    initWebSocket()
+    return
+  }
+  
+  // 发送测试消息
+  send('test', { 
+    message: '前端WebSocket连接测试',
+    timestamp: new Date().toISOString()
+  })
+  
+  ElMessage.success('WebSocket测试消息已发送')
+  
+  // 模拟接收报警消息（用于测试）
+  setTimeout(() => {
+    const testAlarm = {
+      id: Date.now(),
+      deviceName: '测试设备',
+      level: 'high',
+      alarmContent: '这是测试报警消息，用于验证WebSocket连接',
+      timestamp: new Date().toISOString(),
+      status: 'active'
+    }
+    
+    // 手动触发报警处理（模拟后端推送）
+    handlePriorityAlarm(testAlarm)
+    
+    ElMessage.info('测试报警已触发，请检查弹窗和声音')
+  }, 1000)
 }
 
 // 刷新报警列表
@@ -736,6 +798,18 @@ const updatePageStatistics = (alarmList: any[]) => {
   statistics.value = stats
 }
 
+// WebSocket状态类型
+const getWsStatusType = () => {
+  switch (wsStatus.value) {
+    case 'connected': return 'success'
+    case 'connecting': return 'warning'
+    case 'disconnected': return 'info'
+    case 'failed': return 'danger'
+    case 'error': return 'danger'
+    default: return 'info'
+  }
+}
+
 // 格式化时间戳
 const formatTimestamp = (timestamp: string) => {
   if (!timestamp) return '未知时间'
@@ -765,31 +839,189 @@ const formatTimestamp = (timestamp: string) => {
 
 // WebSocket消息处理
 const handleWebSocketMessage = (data: any) => {
+  console.log('收到WebSocket消息:', data)
+  
   if (data.type === 'new_alarm') {
-    // 收到新报警
-    const newAlarm = data.data
-    console.log('收到新报警:', newAlarm)
-    
-    // 显示通知
-    ElMessage.warning(`新报警: ${newAlarm.deviceName} - ${newAlarm.message}`)
-    
-    // 更新未读计数
-    unreadAlarmCount.value++
-    newAlarmNotification.value = true
-    
-    // 如果当前页面是报警页面，自动刷新列表
-    if (router.currentRoute.value.name === 'Alarm') {
-      fetchAlarms()
-    }
+    console.log('处理新报警消息')
+    handleNewAlarm(data.data)
+  } else if (data.type === 'priority_alarm') {
+    console.log('处理优先报警消息')
+    handlePriorityAlarm(data.data)
   } else if (data.type === 'alarm_resolved') {
-    // 报警被处理
     console.log('报警被处理:', data.data)
     
     // 如果当前页面是报警页面，自动刷新列表
     if (router.currentRoute.value.name === 'Alarm') {
       fetchAlarms()
     }
+  } else {
+    console.log('收到未知类型的消息:', data.type)
   }
+}
+
+// 处理普通报警
+const handleNewAlarm = (newAlarm: any) => {
+  console.log('收到新报警:', newAlarm)
+  
+  // 显示通知
+  ElMessage.warning(`新报警: ${newAlarm.deviceName} - ${newAlarm.message}`)
+  
+  // 更新未读计数
+  unreadAlarmCount.value++
+  newAlarmNotification.value = true
+  
+  // 如果当前页面是报警页面，自动刷新列表
+  if (router.currentRoute.value.name === 'Alarm') {
+    fetchAlarms()
+  }
+}
+
+// 处理优先报警
+const handlePriorityAlarm = (priorityAlarm: any) => {
+  console.log('收到优先报警:', priorityAlarm)
+  
+  // 播放声音提醒
+  playAlertSound()
+  
+  // 显示优先弹窗
+  showPriorityPopup(priorityAlarm)
+  
+  // 更新未读计数（优先报警计数加倍）
+  unreadAlarmCount.value += 2
+  newAlarmNotification.value = true
+  
+  // 立即刷新报警列表
+  fetchAlarms()
+}
+
+// 播放提醒声音
+const playAlertSound = () => {
+  try {
+    // 创建音频上下文
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContext) {
+      console.warn('浏览器不支持Web Audio API')
+      return
+    }
+    
+    const audioCtx = new AudioContext()
+    const oscillator = audioCtx.createOscillator()
+    const gainNode = audioCtx.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(audioCtx.destination)
+    
+    // 设置警报声音
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime)
+    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1)
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2)
+    
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5)
+    
+    oscillator.start(audioCtx.currentTime)
+    oscillator.stop(audioCtx.currentTime + 0.5)
+    
+    console.log('播放优先报警声音')
+  } catch (error) {
+    console.warn('声音播放失败:', error)
+  }
+}
+
+// 震动设备（移动端支持）
+const vibrateDevice = () => {
+  if ('vibrate' in navigator) {
+    try {
+      // 震动模式：短-长-短
+      navigator.vibrate([100, 200, 100, 200, 100])
+      console.log('设备震动提醒')
+    } catch (error) {
+      console.warn('震动功能不可用:', error)
+    }
+  }
+}
+
+// 显示新报警弹窗
+const showNewAlarmPopup = (alarmInfo: any) => {
+  const alarmLevel = alarmInfo.level || 'medium'
+  const levelText = getLevelText(alarmLevel)
+  const levelType = getLevelType(alarmLevel)
+  
+  ElMessageBox.alert(
+    `<div style="text-align: left; padding: 10px 0;">
+      <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <el-icon style="color: #e6a23c; font-size: 20px; margin-right: 8px;"><Warning /></el-icon>
+        <span style="font-size: 16px; font-weight: bold;">🔔 新报警通知</span>
+      </div>
+      <div style="margin-bottom: 8px;"><strong>设备名称：</strong>${alarmInfo.deviceName || '未知设备'}</div>
+      <div style="margin-bottom: 8px;"><strong>报警级别：</strong>
+        <el-tag type="${levelType}" size="small">${levelText}</el-tag>
+      </div>
+      <div style="margin-bottom: 8px;"><strong>报警内容：</strong>${alarmInfo.alarmContent || alarmInfo.message || '无详细内容'}</div>
+      <div style="margin-bottom: 8px;"><strong>发生时间：</strong>${formatTimestamp(alarmInfo.timestamp || new Date().toISOString())}</div>
+      <div style="color: #67c23a; font-size: 12px; margin-top: 10px;">
+        💡 系统检测到新报警，请及时处理！
+      </div>
+    </div>`,
+    '新报警通知',
+    {
+      confirmButtonText: '查看详情',
+      cancelButtonText: '知道了',
+      type: 'warning',
+      center: true,
+      dangerouslyUseHTMLString: true,
+      showCancelButton: true,
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          // 点击"查看详情"，跳转到报警详情
+          viewAlarmDetail(alarmInfo)
+        }
+        done()
+      }
+    }
+  )
+}
+
+// 显示优先弹窗
+const showPriorityPopup = (alarmInfo: any) => {
+  const alarmLevel = alarmInfo.level || 'high'
+  const levelText = getLevelText(alarmLevel)
+  const levelType = getLevelType(alarmLevel)
+  
+  ElMessageBox.alert(
+    `<div style="text-align: left; padding: 10px 0;">
+      <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <el-icon style="color: #e6a23c; font-size: 20px; margin-right: 8px;"><Warning /></el-icon>
+        <span style="font-size: 16px; font-weight: bold;">🚨 优先报警通知</span>
+      </div>
+      <div style="margin-bottom: 8px;"><strong>设备名称：</strong>${alarmInfo.deviceName || '未知设备'}</div>
+      <div style="margin-bottom: 8px;"><strong>报警级别：</strong>
+        <el-tag type="${levelType}" size="small">${levelText}</el-tag>
+      </div>
+      <div style="margin-bottom: 8px;"><strong>报警内容：</strong>${alarmInfo.message || alarmInfo.alarmContent || '无详细内容'}</div>
+      <div style="margin-bottom: 8px;"><strong>发生时间：</strong>${formatTimestamp(alarmInfo.timestamp || new Date().toISOString())}</div>
+      <div style="color: #f56c6c; font-size: 12px; margin-top: 10px;">
+        ⚠️ 此为优先报警，请及时处理！
+      </div>
+    </div>`,
+    '优先报警通知',
+    {
+      confirmButtonText: '立即处理',
+      cancelButtonText: '稍后处理',
+      type: 'warning',
+      center: true,
+      dangerouslyUseHTMLString: true,
+      showCancelButton: true,
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          // 点击"立即处理"，跳转到报警详情
+          viewAlarmDetail(alarmInfo)
+        }
+        done()
+      }
+    }
+  )
 }
 
 // 加载报警统计信息
@@ -828,9 +1060,65 @@ const loadStatistics = async () => {
 }
 
 // 初始化WebSocket
-const initWebSocket = () => {
-  connect()
-  onMessage('alarm', handleWebSocketMessage)
+const initWebSocket = async () => {
+  try {
+    logWebSocketStatus('connecting')
+    
+    // 连接WebSocket
+    await connect()
+    
+    // 等待连接建立
+    const checkConnection = () => {
+      return new Promise((resolve) => {
+        const check = () => {
+          if (connected.value) {
+            resolve(true)
+          } else {
+            setTimeout(check, 100)
+          }
+        }
+        check()
+      })
+    }
+    
+    // 等待最多3秒
+    await Promise.race([
+      checkConnection(),
+      new Promise(resolve => setTimeout(() => resolve(false), 3000))
+    ])
+    
+    if (connected.value) {
+      logWebSocketStatus('connected')
+      
+      // 订阅报警消息
+      onMessage('alarm', handleWebSocketMessage)
+      onMessage('priority_alarm', handleWebSocketMessage)
+      onMessage('new_alarm', handleWebSocketMessage)
+      
+      console.log('WebSocket连接成功，已订阅报警消息')
+      
+      // 测试WebSocket连接
+       setTimeout(() => {
+         send('test', { message: '前端WebSocket连接测试' })
+       }, 1000)
+    } else {
+      logWebSocketStatus('failed')
+      console.error('WebSocket连接失败，3秒后重试')
+      
+      // 3秒后重试
+      setTimeout(() => {
+        initWebSocket()
+      }, 3000)
+    }
+  } catch (error) {
+    logWebSocketStatus('error')
+    console.error('WebSocket初始化失败:', error)
+    
+    // 5秒后重试
+    setTimeout(() => {
+      initWebSocket()
+    }, 5000)
+  }
 }
 
 // 处理新报警通知点击
@@ -845,16 +1133,90 @@ const clearNotification = () => {
   unreadAlarmCount.value = 0
 }
 
+// 轮询检查新报警
+let pollInterval: number | null = null
+
 // 初始化
 onMounted(() => {
   fetchAlarms()
   initWebSocket()
+  
+  // 启动轮询检查新报警（每10秒检查一次）
+  startPolling()
 })
 
-// 组件卸载时断开WebSocket
+// 组件卸载时清理
 onUnmounted(() => {
+  stopPolling()
   disconnect()
 })
+
+// 启动轮询
+const startPolling = () => {
+  pollInterval = window.setInterval(() => {
+    checkNewAlarms()
+  }, 10000) // 10秒检查一次
+}
+
+// 停止轮询
+const stopPolling = () => {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
+// 检查新报警
+const checkNewAlarms = async () => {
+  try {
+    // 获取上次检查的最新时间
+    const lastCheckTime = parseInt(localStorage.getItem('lastAlarmCheckTime') || '0')
+    
+    // 获取最新的报警列表
+    const params = {
+      pageNum: 1,
+      pageSize: 10
+    }
+    
+    const response: any = await getAlarms(params)
+    
+    if (response && response.data && response.data.list) {
+      const latestAlarms = response.data.list
+      
+      if (latestAlarms.length > 0) {
+        const latestAlarm = latestAlarms[0]
+        const latestAlarmTime = new Date(latestAlarm.timestamp).getTime()
+        
+        // 如果发现比上次检查时间更新的报警
+        if (latestAlarmTime > lastCheckTime) {
+          // 播放声音提醒
+          playAlertSound()
+          
+          // 显示弹窗通知
+          showNewAlarmPopup(latestAlarm)
+          
+          // 刷新报警列表
+          fetchAlarms()
+          
+          // 显示Element Plus通知
+          ElNotification({
+            title: '新报警通知',
+            message: `设备 ${latestAlarm.deviceName} 发生新报警`,
+            type: 'warning',
+            duration: 5000
+          })
+        }
+      }
+    }
+    
+    // 更新最后检查时间
+    const newCheckTime = Date.now()
+    localStorage.setItem('lastAlarmCheckTime', newCheckTime.toString())
+    
+  } catch (error) {
+    console.error('检查新报警失败:', error)
+  }
+}
 </script>
 
 <style scoped>
