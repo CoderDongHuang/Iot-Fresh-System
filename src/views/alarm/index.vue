@@ -294,6 +294,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Bell, Warning, Clock, SuccessFilled, Close, View, Check, Search, Refresh, Plus, Connection } from '@element-plus/icons-vue'
 import { getAlarms, resolveAlarm as apiResolveAlarm, ignoreAlarm as apiIgnoreAlarm, closeAlarm as apiCloseAlarm, clearAllAlarms as apiClearAllAlarms, getAlarmStatistics, getAlarmHistory, addAlarmHistory } from '@/api/alarm'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { sendSms, getSmsSettings } from '@/api/sms'
 
 // 路由
 const router = useRouter()
@@ -894,6 +895,81 @@ const handlePriorityAlarm = (priorityAlarm: any) => {
   fetchAlarms()
 }
 
+// 发送短信通知
+const sendSmsNotification = async (alarmInfo: any) => {
+  try {
+    // 获取短信设置
+    const settingsResponse = await getSmsSettings()
+    const smsSettings = settingsResponse.data
+    
+    if (!smsSettings || !smsSettings.enabled) {
+      console.log('短信通知未启用')
+      return
+    }
+    
+    // 检查报警级别是否需要发送短信
+    if (!smsSettings.notifyLevels.includes(alarmInfo.level)) {
+      console.log('报警级别不在短信通知范围内')
+      return
+    }
+    
+    // 检查免打扰时段
+    const currentTime = new Date()
+    const currentHour = currentTime.getHours()
+    const currentMinute = currentTime.getMinutes()
+    const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
+    
+    if (smsSettings.quietHours && 
+        currentTimeStr >= smsSettings.quietHours[0] && 
+        currentTimeStr <= smsSettings.quietHours[1]) {
+      console.log('当前处于免打扰时段，不发送短信')
+      return
+    }
+    
+    // 准备短信模板变量
+    const variables = {
+      device: alarmInfo.deviceName || '未知设备',
+      level: getLevelText(alarmInfo.level),
+      content: alarmInfo.alarmContent || alarmInfo.message || '无详细内容',
+      time: formatTimestamp(alarmInfo.timestamp || new Date().toISOString())
+    }
+    
+    // 根据报警级别选择模板
+    let template = ''
+    switch (alarmInfo.level) {
+      case 'high':
+        template = '【IoT系统】紧急报警！设备：{device}，级别：{level}，内容：{content}，时间：{time}'
+        break
+      case 'medium':
+        template = '【IoT系统】重要报警！设备：{device}，内容：{content}，时间：{time}'
+        break
+      case 'low':
+        template = '【IoT系统】一般报警！设备：{device}，内容：{content}，时间：{time}'
+        break
+      default:
+        template = '【IoT系统】设备报警！设备：{device}，内容：{content}，时间：{time}'
+    }
+    
+    // 替换模板变量
+    let message = template
+    for (const [key, value] of Object.entries(variables)) {
+      message = message.replace(`{${key}}`, value)
+    }
+    
+    // 发送短信
+    await sendSms({
+      phoneNumbers: smsSettings.phoneNumbers,
+      template: message,
+      variables,
+      level: alarmInfo.level
+    })
+    
+    console.log('短信通知发送成功')
+  } catch (error) {
+    console.error('短信通知发送失败:', error)
+  }
+}
+
 // 播放提醒声音
 const playAlertSound = () => {
   try {
@@ -911,13 +987,19 @@ const playAlertSound = () => {
     oscillator.connect(gainNode)
     gainNode.connect(audioCtx.destination)
     
-    // 设置警报声音
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime)
-    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1)
-    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2)
+    // 设置清脆的警报声音（响两次）
+    oscillator.type = 'triangle' // 使用三角波，声音更清脆
     
-    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime)
+    // 第一次响声：高音清脆
+    oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime) // 高音
+    oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1) // 更高音
+    gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2)
+    
+    // 第二次响声：间隔后再次响起
+    oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.3) // 高音
+    oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime + 0.4) // 稍低音
+    gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime + 0.3)
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5)
     
     oscillator.start(audioCtx.currentTime)
@@ -1169,31 +1251,71 @@ const stopPolling = () => {
 // 检查新报警
 const checkNewAlarms = async () => {
   try {
+    console.log('轮询检查新报警...')
+    
     // 获取上次检查的最新时间
     const lastCheckTime = parseInt(localStorage.getItem('lastAlarmCheckTime') || '0')
+    console.log('上次检查时间:', new Date(lastCheckTime).toLocaleString())
     
-    // 获取最新的报警列表
+    // 获取最新的报警列表（使用与页面初始化相同的参数）
     const params = {
-      pageNum: 1,
-      pageSize: 10
+      pageNum: pagination.value.currentPage,
+      pageSize: pagination.value.pageSize,
+      level: filter.value.level || undefined,
+      status: filter.value.status || undefined,
+      keyword: filter.value.keyword || undefined
     }
     
+    console.log('轮询检测参数:', params)
     const response: any = await getAlarms(params)
+    console.log('API响应原始数据:', response)
+    console.log('API响应数据:', response?.data?.list?.length || 0, '条报警')
     
-    if (response && response.data && response.data.list) {
-      const latestAlarms = response.data.list
+    // 检查响应格式并提取数据（与页面初始化相同）
+    let resultData = null
+    if (response && response.data) {
+      // 标准格式: { code: 200, msg: 'success', data: { list: [], total: 100 } }
+      resultData = response.data
+    } else if (response && response.list) {
+      // 直接格式: { list: [], total: 100 }
+      resultData = response
+    }
+    
+    if (resultData && resultData.list) {
+      // 数据标准化：确保使用前端期望的字段名（与页面初始化相同）
+      const normalizedList = resultData.list.map((alarm: any) => ({
+        ...alarm,
+        level: alarm.level || alarm.alarmLevel,
+        type: alarm.type || alarm.alarmType,
+        deviceName: alarm.deviceName || alarm.device_name || alarm.name,
+        alarmContent: alarm.alarmContent || alarm.content || alarm.message,
+        timestamp: alarm.timestamp || alarm.time || alarm.createTime,
+        status: (alarm.status || alarm.state) === '待处理' ? 'active' : 
+                 (alarm.status || alarm.state) === '已处理' ? 'resolved' : 
+                 (alarm.status || alarm.state)
+      }))
+      
+      const latestAlarms = normalizedList
       
       if (latestAlarms.length > 0) {
         const latestAlarm = latestAlarms[0]
         const latestAlarmTime = new Date(latestAlarm.timestamp).getTime()
         
+        console.log('最新报警时间:', new Date(latestAlarmTime).toLocaleString())
+        console.log('时间比较:', latestAlarmTime, '>', lastCheckTime, '=', latestAlarmTime > lastCheckTime)
+        
         // 如果发现比上次检查时间更新的报警
         if (latestAlarmTime > lastCheckTime) {
+          console.log('发现新报警，触发通知!')
+          
           // 播放声音提醒
           playAlertSound()
           
           // 显示弹窗通知
           showNewAlarmPopup(latestAlarm)
+          
+          // 发送短信通知
+          sendSmsNotification(latestAlarm)
           
           // 刷新报警列表
           fetchAlarms()
@@ -1205,13 +1327,18 @@ const checkNewAlarms = async () => {
             type: 'warning',
             duration: 5000
           })
+        } else {
+          console.log('没有发现新报警')
         }
+      } else {
+        console.log('报警列表为空')
       }
     }
     
     // 更新最后检查时间
     const newCheckTime = Date.now()
     localStorage.setItem('lastAlarmCheckTime', newCheckTime.toString())
+    console.log('更新检查时间:', new Date(newCheckTime).toLocaleString())
     
   } catch (error) {
     console.error('检查新报警失败:', error)
