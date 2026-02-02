@@ -48,7 +48,7 @@
         
         <el-form-item>
           <el-checkbox v-model="rememberMe">记住密码</el-checkbox>
-          <el-link type="primary" :underline="false" @click="showForget = true">
+          <el-link type="primary" underline="never" @click="showForget = true">
             忘记密码?
           </el-link>
         </el-form-item>
