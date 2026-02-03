@@ -2,21 +2,21 @@
   <div class="notification-settings">
     <el-card class="settings-card" header="报警通知设置">
       <el-form :model="settings" label-width="120px" class="settings-form">
-        <!-- 短信通知设置 -->
-        <el-form-item label="短信通知">
-          <el-switch v-model="settings.enabled" @change="handleSmsChange" />
-          <span class="setting-desc">开启后，高优先级报警将自动发送短信</span>
+        <!-- 邮件通知设置 -->
+        <el-form-item label="邮件通知">
+          <el-switch v-model="settings.enabled" @change="handleEmailChange" />
+          <span class="setting-desc">开启后，高优先级报警将自动发送邮件</span>
         </el-form-item>
         
-        <el-form-item v-if="settings.enabled" label="接收手机号">
+        <el-form-item v-if="settings.enabled" label="接收邮箱">
           <el-input 
-            v-model="phoneNumbersInput" 
-            placeholder="请输入手机号，多个用逗号分隔"
+            v-model="emailAddressesInput" 
+            placeholder="请输入邮箱地址，多个用逗号分隔"
             style="width: 300px;"
-            @blur="updatePhoneNumbers"
+            @blur="updateEmailAddresses"
           />
-          <el-button type="primary" size="small" @click="testSms" style="margin-left: 10px;">
-            测试短信
+          <el-button type="primary" size="small" @click="testEmail" style="margin-left: 10px;">
+            测试邮件
           </el-button>
         </el-form-item>
         
@@ -79,12 +79,12 @@
       </el-form>
     </el-card>
     
-    <!-- 短信模板设置 -->
-    <el-card class="template-card" header="短信模板设置">
-      <el-form :model="smsTemplates" label-width="100px">
+    <!-- 邮件模板设置 -->
+    <el-card class="template-card" header="邮件模板设置">
+      <el-form :model="emailTemplates" label-width="100px">
         <el-form-item label="高优先级">
           <el-input 
-            v-model="smsTemplates.high" 
+            v-model="emailTemplates.high" 
             type="textarea" 
             :rows="2"
             placeholder="【IoT系统】紧急报警！设备：{device}，级别：{level}，内容：{content}"
@@ -93,7 +93,7 @@
         
         <el-form-item label="中优先级">
           <el-input 
-            v-model="smsTemplates.medium" 
+            v-model="emailTemplates.medium" 
             type="textarea" 
             :rows="2"
             placeholder="【IoT系统】重要报警！设备：{device}，内容：{content}"
@@ -102,7 +102,7 @@
         
         <el-form-item label="低优先级">
           <el-input 
-            v-model="smsTemplates.low" 
+            v-model="emailTemplates.low" 
             type="textarea" 
             :rows="2"
             placeholder="【IoT系统】一般报警！设备：{device}，内容：{content}"
@@ -121,19 +121,19 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  getSmsSettings, 
-  saveSmsSettings, 
-  testSms as testSmsApi,
-  getSmsTemplates,
-  saveSmsTemplates,
-  type SmsSettings as SmsSettingsType,
-  type SmsTemplates as SmsTemplatesType
-} from '@/api/sms'
+  getEmailSettings, 
+  saveEmailSettings, 
+  testEmail as testEmailApi,
+  getEmailTemplates,
+  saveEmailTemplates,
+  type EmailSettings as EmailSettingsType,
+  type EmailTemplates as EmailTemplatesType
+} from '@/api/email'
 
 // 通知设置
-const settings = reactive<SmsSettingsType>({
+const settings = reactive<EmailSettingsType>({
   enabled: false,
-  phoneNumbers: [],
+  emailAddresses: [],
   notifyLevels: ['high', 'medium'],
   pushFrequency: 'immediate',
   quietHours: ['22:00', '07:00']
@@ -146,49 +146,49 @@ const otherSettings = reactive({
   popupEnabled: true
 })
 
-// 短信模板
-const smsTemplates = reactive<SmsTemplatesType>({
+// 邮件模板
+const emailTemplates = reactive<EmailTemplatesType>({
   high: '【IoT系统】紧急报警！设备：{device}，级别：{level}，内容：{content}',
   medium: '【IoT系统】重要报警！设备：{device}，内容：{content}',
   low: '【IoT系统】一般报警！设备：{device}，内容：{content}'
 })
 
-// 手机号输入框的临时值
-const phoneNumbersInput = ref('')
+// 邮箱地址输入框的临时值
+const emailAddressesInput = ref('')
 
-// 更新手机号列表
-const updatePhoneNumbers = () => {
-  if (phoneNumbersInput.value.trim()) {
-    settings.phoneNumbers = phoneNumbersInput.value
+// 更新邮箱地址列表
+const updateEmailAddresses = () => {
+  if (emailAddressesInput.value.trim()) {
+    settings.emailAddresses = emailAddressesInput.value
       .split(',')
-      .map(phone => phone.trim())
-      .filter(phone => phone.length > 0)
+      .map(email => email.trim())
+      .filter(email => email.length > 0 && email.includes('@'))
   }
 }
 
 // 加载设置
 const loadSettings = async () => {
   try {
-    console.log('开始加载短信设置...')
+    console.log('开始加载邮件设置...')
     
     // 从后端API加载用户设置
     const [settingsResponse, templatesResponse] = await Promise.all([
-      getSmsSettings(),
-      getSmsTemplates()
+      getEmailSettings(),
+      getEmailTemplates()
     ])
     
-    console.log('短信设置API响应:', settingsResponse)
-    console.log('短信模板API响应:', templatesResponse)
+    console.log('邮件设置API响应:', settingsResponse)
+    console.log('邮件模板API响应:', templatesResponse)
     
     if (settingsResponse.data) {
       Object.assign(settings, settingsResponse.data)
-      phoneNumbersInput.value = settings.phoneNumbers.join(', ')
-      console.log('短信设置加载成功:', settings)
+      emailAddressesInput.value = settings.emailAddresses.join(', ')
+      console.log('邮件设置加载成功:', settings)
     }
     
     if (templatesResponse.data) {
-      Object.assign(smsTemplates, templatesResponse.data)
-      console.log('短信模板加载成功:', smsTemplates)
+      Object.assign(emailTemplates, templatesResponse.data)
+      console.log('邮件模板加载成功:', emailTemplates)
     }
     
     // 加载其他设置（本地存储）
@@ -200,19 +200,19 @@ const loadSettings = async () => {
     console.error('加载设置失败:', error)
     console.error('错误详情:', error.response || error)
     // 使用默认设置
-    phoneNumbersInput.value = settings.phoneNumbers.join(', ')
+    emailAddressesInput.value = settings.emailAddresses.join(', ')
   }
 }
 
 // 保存设置
 const saveSettings = async () => {
   try {
-    updatePhoneNumbers()
+    updateEmailAddresses()
     
-    console.log('保存短信设置:', settings)
+    console.log('保存邮件设置:', settings)
     
-    // 保存短信设置到后端
-    const response = await saveSmsSettings(settings)
+    // 保存邮件设置到后端
+    const response = await saveEmailSettings(settings)
     console.log('保存设置API响应:', response)
     
     // 保存其他设置到本地存储
@@ -220,28 +220,28 @@ const saveSettings = async () => {
     
     ElMessage.success('设置保存成功')
   } catch (error: any) {
-     console.error('保存设置失败 - 完整错误:', error)
-     console.error('保存设置失败 - 响应数据:', error.response?.data)
-     console.error('保存设置失败 - 状态码:', error.response?.status)
-     console.error('保存设置失败 - 请求URL:', error.config?.url)
-     
-     let errorMessage = '保存设置失败'
-     if (error.response?.status === 404) {
-       errorMessage = '短信设置API接口不存在，请检查后端实现'
-     } else if (error.response?.status === 500) {
-       errorMessage = '服务器内部错误，请检查后端日志'
-     } else if (error.message) {
-       errorMessage = `保存设置失败: ${error.message}`
-     }
-     
-     ElMessage.error(errorMessage)
-   }
+    console.error('保存设置失败 - 完整错误:', error)
+    console.error('保存设置失败 - 响应数据:', error.response?.data)
+    console.error('保存设置失败 - 状态码:', error.response?.status)
+    console.error('保存设置失败 - 请求URL:', error.config?.url)
+    
+    let errorMessage = '保存设置失败'
+    if (error.response?.status === 404) {
+      errorMessage = '邮件设置API接口不存在，请检查后端实现'
+    } else if (error.response?.status === 500) {
+      errorMessage = '服务器内部错误，请检查后端日志'
+    } else if (error.message) {
+      errorMessage = `保存设置失败: ${error.message}`
+    }
+    
+    ElMessage.error(errorMessage)
+  }
 }
 
 // 保存模板
 const saveTemplates = async () => {
   try {
-    await saveSmsTemplates(smsTemplates)
+    await saveEmailTemplates(emailTemplates)
     ElMessage.success('模板保存成功')
   } catch (error) {
     ElMessage.error('保存模板失败')
@@ -257,7 +257,7 @@ const resetSettings = () => {
   }).then(() => {
     Object.assign(settings, {
       enabled: false,
-      phoneNumbers: [],
+      emailAddresses: [],
       notifyLevels: ['high', 'medium'],
       pushFrequency: 'immediate',
       quietHours: ['22:00', '07:00']
@@ -269,51 +269,51 @@ const resetSettings = () => {
       popupEnabled: true
     })
     
-    phoneNumbersInput.value = ''
+    emailAddressesInput.value = ''
     ElMessage.success('设置已恢复默认')
   })
 }
 
-// 测试短信
-const testSms = async () => {
-  updatePhoneNumbers()
+// 测试邮件
+const testEmail = async () => {
+  updateEmailAddresses()
   
-  if (!settings.phoneNumbers.length) {
-    ElMessage.warning('请先输入手机号')
+  if (!settings.emailAddresses.length) {
+    ElMessage.warning('请先输入邮箱地址')
     return
   }
   
   try {
-    console.log('测试短信发送，手机号:', settings.phoneNumbers[0])
+    console.log('测试邮件发送，邮箱:', settings.emailAddresses[0])
     
-    // 调用后端API发送测试短信
-    const response = await testSmsApi(settings.phoneNumbers[0])
-    console.log('测试短信API响应:', response)
+    // 调用后端API发送测试邮件
+    const response = await testEmailApi(settings.emailAddresses[0])
+    console.log('测试邮件API响应:', response)
     
-    ElMessage.success('测试短信发送成功')
+    ElMessage.success('测试邮件发送成功')
   } catch (error: any) {
-     console.error('测试短信发送失败 - 完整错误:', error)
-     console.error('测试短信发送失败 - 响应数据:', error.response?.data)
-     console.error('测试短信发送失败 - 状态码:', error.response?.status)
-     console.error('测试短信发送失败 - 请求URL:', error.config?.url)
-     
-     let errorMessage = '测试短信发送失败'
-     if (error.response?.status === 404) {
-       errorMessage = '短信API接口不存在，请检查后端实现'
-     } else if (error.response?.status === 500) {
-       errorMessage = '服务器内部错误，请检查后端日志'
-     } else if (error.message) {
-       errorMessage = `测试短信发送失败: ${error.message}`
-     }
-     
-     ElMessage.error(errorMessage)
-   }
+    console.error('测试邮件发送失败 - 完整错误:', error)
+    console.error('测试邮件发送失败 - 响应数据:', error.response?.data)
+    console.error('测试邮件发送失败 - 状态码:', error.response?.status)
+    console.error('测试邮件发送失败 - 请求URL:', error.config?.url)
+    
+    let errorMessage = '测试邮件发送失败'
+    if (error.response?.status === 404) {
+      errorMessage = '邮件API接口不存在，请检查后端实现'
+    } else if (error.response?.status === 500) {
+      errorMessage = '服务器内部错误，请检查后端日志'
+    } else if (error.message) {
+      errorMessage = `测试邮件发送失败: ${error.message}`
+    }
+    
+    ElMessage.error(errorMessage)
+  }
 }
 
-// 短信开关变化
-const handleSmsChange = (enabled: boolean) => {
-  if (enabled && !settings.phoneNumbers.length) {
-    ElMessage.info('请设置接收手机号')
+// 邮件开关变化
+const handleEmailChange = (enabled: boolean) => {
+  if (enabled && !settings.emailAddresses.length) {
+    ElMessage.info('请设置接收邮箱')
   }
 }
 

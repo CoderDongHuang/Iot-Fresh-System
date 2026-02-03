@@ -294,7 +294,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Bell, Warning, Clock, SuccessFilled, Close, View, Check, Search, Refresh, Plus, Connection } from '@element-plus/icons-vue'
 import { getAlarms, resolveAlarm as apiResolveAlarm, ignoreAlarm as apiIgnoreAlarm, closeAlarm as apiCloseAlarm, clearAllAlarms as apiClearAllAlarms, getAlarmStatistics, getAlarmHistory, addAlarmHistory } from '@/api/alarm'
 import { useWebSocket } from '@/composables/useWebSocket'
-import { sendSms, getSmsSettings } from '@/api/sms'
+import { sendEmail, getEmailSettings } from '@/api/email'
 
 // 路由
 const router = useRouter()
@@ -895,21 +895,21 @@ const handlePriorityAlarm = (priorityAlarm: any) => {
   fetchAlarms()
 }
 
-// 发送短信通知
-const sendSmsNotification = async (alarmInfo: any) => {
+// 发送邮件通知
+const sendEmailNotification = async (alarmInfo: any) => {
   try {
-    // 获取短信设置
-    const settingsResponse = await getSmsSettings()
-    const smsSettings = settingsResponse.data
+    // 获取邮件设置
+    const settingsResponse = await getEmailSettings()
+    const emailSettings = settingsResponse.data
     
-    if (!smsSettings || !smsSettings.enabled) {
-      console.log('短信通知未启用')
+    if (!emailSettings || !emailSettings.enabled) {
+      console.log('邮件通知未启用')
       return
     }
     
-    // 检查报警级别是否需要发送短信
-    if (!smsSettings.notifyLevels.includes(alarmInfo.level)) {
-      console.log('报警级别不在短信通知范围内')
+    // 检查报警级别是否需要发送邮件
+    if (!emailSettings.notifyLevels.includes(alarmInfo.level)) {
+      console.log('报警级别不在邮件通知范围内')
       return
     }
     
@@ -919,14 +919,14 @@ const sendSmsNotification = async (alarmInfo: any) => {
     const currentMinute = currentTime.getMinutes()
     const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
     
-    if (smsSettings.quietHours && 
-        currentTimeStr >= smsSettings.quietHours[0] && 
-        currentTimeStr <= smsSettings.quietHours[1]) {
-      console.log('当前处于免打扰时段，不发送短信')
+    if (emailSettings.quietHours && 
+        currentTimeStr >= emailSettings.quietHours[0] && 
+        currentTimeStr <= emailSettings.quietHours[1]) {
+      console.log('当前处于免打扰时段，不发送邮件')
       return
     }
     
-    // 准备短信模板变量
+    // 准备邮件模板变量
     const variables = {
       device: alarmInfo.deviceName || '未知设备',
       level: getLevelText(alarmInfo.level),
@@ -934,39 +934,39 @@ const sendSmsNotification = async (alarmInfo: any) => {
       time: formatTimestamp(alarmInfo.timestamp || new Date().toISOString())
     }
     
-    // 根据报警级别选择模板
-    let template = ''
+    // 根据报警级别选择邮件主题和内容
+    let subject = ''
+    let content = ''
+    
     switch (alarmInfo.level) {
       case 'high':
-        template = '【IoT系统】紧急报警！设备：{device}，级别：{level}，内容：{content}，时间：{time}'
+        subject = '【IoT系统】紧急报警通知'
+        content = `设备：${variables.device}\n级别：${variables.level}\n内容：${variables.content}\n时间：${variables.time}`
         break
       case 'medium':
-        template = '【IoT系统】重要报警！设备：{device}，内容：{content}，时间：{time}'
+        subject = '【IoT系统】重要报警通知'
+        content = `设备：${variables.device}\n内容：${variables.content}\n时间：${variables.time}`
         break
       case 'low':
-        template = '【IoT系统】一般报警！设备：{device}，内容：{content}，时间：{time}'
+        subject = '【IoT系统】一般报警通知'
+        content = `设备：${variables.device}\n内容：${variables.content}\n时间：${variables.time}`
         break
       default:
-        template = '【IoT系统】设备报警！设备：{device}，内容：{content}，时间：{time}'
+        subject = '【IoT系统】设备报警通知'
+        content = `设备：${variables.device}\n内容：${variables.content}\n时间：${variables.time}`
     }
     
-    // 替换模板变量
-    let message = template
-    for (const [key, value] of Object.entries(variables)) {
-      message = message.replace(`{${key}}`, value)
-    }
-    
-    // 发送短信
-    await sendSms({
-      phoneNumbers: smsSettings.phoneNumbers,
-      template: message,
-      variables,
+    // 发送邮件
+    await sendEmail({
+      emailAddresses: emailSettings.emailAddresses,
+      subject: subject,
+      content: content,
       level: alarmInfo.level
     })
     
-    console.log('短信通知发送成功')
+    console.log('邮件通知发送成功')
   } catch (error) {
-    console.error('短信通知发送失败:', error)
+    console.error('邮件通知发送失败:', error)
   }
 }
 
@@ -1314,8 +1314,8 @@ const checkNewAlarms = async () => {
           // 显示弹窗通知
           showNewAlarmPopup(latestAlarm)
           
-          // 发送短信通知
-          sendSmsNotification(latestAlarm)
+          // 发送邮件通知
+          sendEmailNotification(latestAlarm)
           
           // 刷新报警列表
           fetchAlarms()
