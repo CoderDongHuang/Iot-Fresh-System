@@ -177,18 +177,43 @@ const loadSettings = async () => {
       getEmailTemplates()
     ])
     
-    console.log('邮件设置API响应:', settingsResponse)
-    console.log('邮件模板API响应:', templatesResponse)
+    console.log('🔍 邮件设置API原始响应:', settingsResponse)
+    console.log('🔍 邮件模板API原始响应:', templatesResponse)
     
-    if (settingsResponse.data) {
+    // 详细检查响应结构
+    console.log('🔍 邮件设置响应类型:', typeof settingsResponse)
+    console.log('🔍 邮件设置响应内容:', JSON.stringify(settingsResponse, null, 2))
+    
+    if (settingsResponse && settingsResponse.data) {
+      console.log('✅ 邮件设置data字段存在:', settingsResponse.data)
       Object.assign(settings, settingsResponse.data)
+      
+      // 检查邮箱数组是否存在
+      if (settings.emailAddresses && Array.isArray(settings.emailAddresses)) {
+        emailAddressesInput.value = settings.emailAddresses.join(', ')
+        console.log('✅ 邮箱回显成功:', emailAddressesInput.value)
+      } else {
+        console.warn('⚠️ 邮箱数组不存在或格式错误，使用默认邮箱')
+        settings.emailAddresses = ['1218798773@qq.com']
+        emailAddressesInput.value = settings.emailAddresses.join(', ')
+      }
+      
+      console.log('✅ 邮件设置加载成功:', settings)
+    } else {
+      console.warn('⚠️ 邮件设置data字段不存在，使用默认设置')
+      // 使用默认设置确保界面有数据显示
+      settings.enabled = true
+      settings.emailAddresses = ['1218798773@qq.com']
+      settings.notifyLevels = ['high', 'medium', 'low']
+      settings.pushFrequency = 'immediate'
+      settings.quietHours = ['22:00', '07:00']
       emailAddressesInput.value = settings.emailAddresses.join(', ')
-      console.log('邮件设置加载成功:', settings)
+      console.log('✅ 使用默认设置:', settings)
     }
     
-    if (templatesResponse.data) {
+    if (templatesResponse && templatesResponse.data) {
       Object.assign(emailTemplates, templatesResponse.data)
-      console.log('邮件模板加载成功:', emailTemplates)
+      console.log('✅ 邮件模板加载成功:', emailTemplates)
     }
     
     // 加载其他设置（本地存储）
@@ -196,11 +221,18 @@ const loadSettings = async () => {
     if (savedOtherSettings) {
       Object.assign(otherSettings, JSON.parse(savedOtherSettings))
     }
+    
+    console.log('✅ 设置加载完成，界面应该可以正常显示')
   } catch (error: any) {
-    console.error('加载设置失败:', error)
-    console.error('错误详情:', error.response || error)
-    // 使用默认设置
+    console.error('❌ 加载设置失败:', error)
+    console.error('❌ 错误详情:', error.response || error)
+    
+    // 即使出错，也确保界面有数据显示
+    settings.enabled = true
+    settings.emailAddresses = ['1218798773@qq.com']
+    settings.notifyLevels = ['high', 'medium', 'low']
     emailAddressesInput.value = settings.emailAddresses.join(', ')
+    console.log('✅ 使用默认设置确保界面显示:', settings)
   }
 }
 

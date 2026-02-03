@@ -898,18 +898,22 @@ const handlePriorityAlarm = (priorityAlarm: any) => {
 // 发送邮件通知
 const sendEmailNotification = async (alarmInfo: any) => {
   try {
+    console.log('📧 开始处理邮件通知，报警信息:', alarmInfo)
+    
     // 获取邮件设置
+    console.log('🔧 获取邮件设置...')
     const settingsResponse = await getEmailSettings()
     const emailSettings = settingsResponse.data
+    console.log('📋 邮件设置:', emailSettings)
     
     if (!emailSettings || !emailSettings.enabled) {
-      console.log('邮件通知未启用')
+      console.log('❌ 邮件通知未启用')
       return
     }
     
     // 检查报警级别是否需要发送邮件
     if (!emailSettings.notifyLevels.includes(alarmInfo.level)) {
-      console.log('报警级别不在邮件通知范围内')
+      console.log('❌ 报警级别不在邮件通知范围内')
       return
     }
     
@@ -918,11 +922,12 @@ const sendEmailNotification = async (alarmInfo: any) => {
     const currentHour = currentTime.getHours()
     const currentMinute = currentTime.getMinutes()
     const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
+    console.log('⏰ 当前时间:', currentTimeStr)
     
     if (emailSettings.quietHours && 
         currentTimeStr >= emailSettings.quietHours[0] && 
         currentTimeStr <= emailSettings.quietHours[1]) {
-      console.log('当前处于免打扰时段，不发送邮件')
+      console.log('❌ 当前处于免打扰时段，不发送邮件')
       return
     }
     
@@ -956,18 +961,26 @@ const sendEmailNotification = async (alarmInfo: any) => {
         content = `设备：${variables.device}\n内容：${variables.content}\n时间：${variables.time}`
     }
     
+    console.log('📨 准备发送邮件:')
+    console.log('  收件人:', emailSettings.emailAddresses)
+    console.log('  主题:', subject)
+    console.log('  内容:', content)
+    console.log('  级别:', alarmInfo.level)
+    
     // 发送邮件
-    await sendEmail({
+    console.log('🚀 调用后端邮件API...')
+    const emailResponse = await sendEmail({
       emailAddresses: emailSettings.emailAddresses,
       subject: subject,
       content: content,
       level: alarmInfo.level
     })
     
-    console.log('邮件通知发送成功')
-  } catch (error) {
-    console.error('邮件通知发送失败:', error)
-  }
+    console.log('✅ 邮件通知发送成功，API响应:', emailResponse)
+  } catch (error: any) {
+     console.error('❌ 邮件通知发送失败:', error)
+     console.error('错误详情:', error.response || error)
+   }
 }
 
 // 播放提醒声音

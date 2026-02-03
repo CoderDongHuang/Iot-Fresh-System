@@ -34,11 +34,20 @@ service.interceptors.response.use(
       
       // 检查响应数据是否存在
       if (!res) {
+        console.warn('HTTP拦截器: 响应数据为空')
         return Promise.reject(new Error('响应数据为空'))
       }
       
+      console.log('HTTP拦截器: 收到响应数据:', res)
+      
+      // 兼容性处理：如果后端直接返回数据对象（没有包装）
+      if (typeof res === 'object' && !res.code) {
+        console.log('HTTP拦截器: 后端返回未包装的数据，直接返回')
+        return res  // 直接返回数据对象
+      }
+      
       // 检查业务状态码
-      if (res.code !== 200) {
+      if (res.code && res.code !== 200) {
         // 未登录或token过期
         if (res.code === 401) {
           ElMessageBox.confirm('登录状态已过期，请重新登录', '系统提示', {
@@ -57,8 +66,13 @@ service.interceptors.response.use(
           })
         }
         return Promise.reject(new Error(res.msg || 'Error'))
-      } else {
+      } else if (res.code === 200) {
+        // 正常包装格式
         return res.data
+      } else {
+        // 没有code字段，直接返回数据
+        console.log('HTTP拦截器: 响应没有code字段，直接返回数据')
+        return res
       }
     } else {
       // HTTP 状态码错误
