@@ -275,7 +275,7 @@ const loadSettings = async () => {
       // 使用默认设置确保界面有数据显示
       dingTalkSettings.enabled = false
       dingTalkSettings.webhookUrl = 'https://oapi.dingtalk.com/robot/send?access_token=6bcee6966a2900452463499e8ed74b44bfaab5612c95a2e6ff1c594efc81c6d6'
-      dingTalkSettings.secret = 'SECe483d14820a3d1e4e93338ac2aaa860852bcbc4f8eb81f928daab259722fcdb1'
+      dingTalkSettings.secret = ''
       dingTalkSettings.notifyLevels = ['high', 'medium']
       dingTalkSettings.quietHours = ['22:00', '07:00']
       console.log('✅ 使用钉钉默认设置:', dingTalkSettings)
