@@ -1,14 +1,14 @@
 <template>
   <div class="notification-settings">
     <el-card class="settings-card" header="报警通知设置">
-      <el-form :model="settings" label-width="120px" class="settings-form">
+      <el-form label-width="120px" class="settings-form">
         <!-- 邮件通知设置 -->
         <el-form-item label="邮件通知">
-          <el-switch v-model="settings.enabled" @change="handleEmailChange" />
+          <el-switch v-model="emailSettings.enabled" @change="handleEmailChange" />
           <span class="setting-desc">开启后，高优先级报警将自动发送邮件</span>
         </el-form-item>
         
-        <el-form-item v-if="settings.enabled" label="接收邮箱">
+        <el-form-item v-if="emailSettings.enabled" label="接收邮箱">
           <el-input 
             v-model="emailAddressesInput" 
             placeholder="请输入邮箱地址，多个用逗号分隔"
@@ -17,6 +17,33 @@
           />
           <el-button type="primary" size="small" @click="testEmail" style="margin-left: 10px;">
             测试邮件
+          </el-button>
+        </el-form-item>
+        
+        <!-- 钉钉机器人通知设置 -->
+        <el-form-item label="钉钉机器人通知">
+          <el-switch v-model="dingTalkSettings.enabled" />
+          <span class="setting-desc">开启后，高优先级报警将发送到钉钉群</span>
+        </el-form-item>
+        
+        <el-form-item v-if="dingTalkSettings.enabled" label="Webhook地址">
+          <el-input 
+            v-model="dingTalkSettings.webhookUrl" 
+            placeholder="请输入钉钉机器人Webhook地址"
+            style="width: 400px;"
+          />
+        </el-form-item>
+        
+        <el-form-item v-if="dingTalkSettings.enabled" label="加签密钥">
+          <el-input 
+            v-model="dingTalkSettings.secret" 
+            placeholder="请输入钉钉机器人加签密钥"
+            style="width: 300px;"
+            type="password"
+            show-password
+          />
+          <el-button type="primary" size="small" @click="testDingTalk" style="margin-left: 10px;">
+            测试机器人
           </el-button>
         </el-form-item>
         
@@ -129,13 +156,28 @@ import {
   type EmailSettings as EmailSettingsType,
   type EmailTemplates as EmailTemplatesType
 } from '@/api/email'
+import {
+  getDingTalkSettings,
+  saveDingTalkSettings,
+  testDingTalk as testDingTalkApi,
+  type DingTalkSettings as DingTalkSettingsType
+} from '@/api/dingtalk'
 
-// 通知设置
-const settings = reactive<EmailSettingsType>({
+// 邮件通知设置
+const emailSettings = reactive<EmailSettingsType>({
   enabled: false,
   emailAddresses: [],
   notifyLevels: ['high', 'medium'],
   pushFrequency: 'immediate',
+  quietHours: ['22:00', '07:00']
+})
+
+// 钉钉机器人设置
+const dingTalkSettings = reactive<DingTalkSettingsType>({
+  enabled: false,
+  webhookUrl: 'https://oapi.dingtalk.com/robot/send?access_token=6bcee6966a2900452463499e8ed74b44bfaab5612c95a2e6ff1c594efc81c6d6',
+  secret: 'SECe483d14820a3d1e4e93338ac2aaa860852bcbc4f8eb81f928daab259722fcdb1',
+  notifyLevels: ['high', 'medium'],
   quietHours: ['22:00', '07:00']
 })
 
@@ -145,6 +187,9 @@ const otherSettings = reactive({
   vibrationEnabled: true,
   popupEnabled: true
 })
+
+// 统一设置变量（兼容旧代码）
+const settings = emailSettings
 
 // 邮件模板
 const emailTemplates = reactive<EmailTemplatesType>({
@@ -169,24 +214,27 @@ const updateEmailAddresses = () => {
 // 加载设置
 const loadSettings = async () => {
   try {
-    console.log('开始加载邮件设置...')
+    console.log('开始加载通知设置...')
     
     // 从后端API加载用户设置
-    const [settingsResponse, templatesResponse] = await Promise.all([
+    const [emailSettingsResponse, emailTemplatesResponse, dingTalkSettingsResponse] = await Promise.all([
       getEmailSettings(),
-      getEmailTemplates()
+      getEmailTemplates(),
+      getDingTalkSettings()
     ])
     
-    console.log('🔍 邮件设置API原始响应:', settingsResponse)
-    console.log('🔍 邮件模板API原始响应:', templatesResponse)
+    console.log('🔍 邮件设置API原始响应:', emailSettingsResponse)
+    console.log('🔍 邮件模板API原始响应:', emailTemplatesResponse)
+    console.log('🔍 钉钉设置API原始响应:', dingTalkSettingsResponse)
     
     // 详细检查响应结构
-    console.log('🔍 邮件设置响应类型:', typeof settingsResponse)
-    console.log('🔍 邮件设置响应内容:', JSON.stringify(settingsResponse, null, 2))
+    console.log('🔍 邮件设置响应类型:', typeof emailSettingsResponse)
+    console.log('🔍 邮件设置响应内容:', JSON.stringify(emailSettingsResponse, null, 2))
     
-    if (settingsResponse && settingsResponse.data) {
-      console.log('✅ 邮件设置data字段存在:', settingsResponse.data)
-      Object.assign(settings, settingsResponse.data)
+    // 加载邮件设置
+    if (emailSettingsResponse && emailSettingsResponse.data) {
+      console.log('✅ 邮件设置data字段存在:', emailSettingsResponse.data)
+      Object.assign(settings, emailSettingsResponse.data)
       
       // 检查邮箱数组是否存在
       if (settings.emailAddresses && Array.isArray(settings.emailAddresses)) {
@@ -211,9 +259,26 @@ const loadSettings = async () => {
       console.log('✅ 使用默认设置:', settings)
     }
     
-    if (templatesResponse && templatesResponse.data) {
-      Object.assign(emailTemplates, templatesResponse.data)
+    // 加载邮件模板
+    if (emailTemplatesResponse && emailTemplatesResponse.data) {
+      Object.assign(emailTemplates, emailTemplatesResponse.data)
       console.log('✅ 邮件模板加载成功:', emailTemplates)
+    }
+    
+    // 加载钉钉设置
+    if (dingTalkSettingsResponse && dingTalkSettingsResponse.data) {
+      console.log('✅ 钉钉设置data字段存在:', dingTalkSettingsResponse.data)
+      Object.assign(dingTalkSettings, dingTalkSettingsResponse.data)
+      console.log('✅ 钉钉设置加载成功:', dingTalkSettings)
+    } else {
+      console.warn('⚠️ 钉钉设置data字段不存在，使用默认设置')
+      // 使用默认设置确保界面有数据显示
+      dingTalkSettings.enabled = false
+      dingTalkSettings.webhookUrl = 'https://oapi.dingtalk.com/robot/send?access_token=6bcee6966a2900452463499e8ed74b44bfaab5612c95a2e6ff1c594efc81c6d6'
+      dingTalkSettings.secret = 'SECe483d14820a3d1e4e93338ac2aaa860852bcbc4f8eb81f928daab259722fcdb1'
+      dingTalkSettings.notifyLevels = ['high', 'medium']
+      dingTalkSettings.quietHours = ['22:00', '07:00']
+      console.log('✅ 使用钉钉默认设置:', dingTalkSettings)
     }
     
     // 加载其他设置（本地存储）
@@ -242,10 +307,16 @@ const saveSettings = async () => {
     updateEmailAddresses()
     
     console.log('保存邮件设置:', settings)
+    console.log('保存钉钉设置:', dingTalkSettings)
     
-    // 保存邮件设置到后端
-    const response = await saveEmailSettings(settings)
-    console.log('保存设置API响应:', response)
+    // 同时保存邮件设置和钉钉设置到后端
+    const [emailResponse, dingTalkResponse] = await Promise.all([
+      saveEmailSettings(settings),
+      saveDingTalkSettings(dingTalkSettings)
+    ])
+    
+    console.log('保存邮件设置API响应:', emailResponse)
+    console.log('保存钉钉设置API响应:', dingTalkResponse)
     
     // 保存其他设置到本地存储
     localStorage.setItem('alarmNotificationOtherSettings', JSON.stringify(otherSettings))
@@ -259,7 +330,7 @@ const saveSettings = async () => {
     
     let errorMessage = '保存设置失败'
     if (error.response?.status === 404) {
-      errorMessage = '邮件设置API接口不存在，请检查后端实现'
+      errorMessage = '设置API接口不存在，请检查后端实现'
     } else if (error.response?.status === 500) {
       errorMessage = '服务器内部错误，请检查后端日志'
     } else if (error.message) {
@@ -336,6 +407,43 @@ const testEmail = async () => {
       errorMessage = '服务器内部错误，请检查后端日志'
     } else if (error.message) {
       errorMessage = `测试邮件发送失败: ${error.message}`
+    }
+    
+    ElMessage.error(errorMessage)
+  }
+}
+
+// 测试钉钉机器人
+const testDingTalk = async () => {
+  if (!dingTalkSettings.webhookUrl || !dingTalkSettings.secret) {
+    ElMessage.warning('请先输入Webhook地址和加签密钥')
+    return
+  }
+  
+  try {
+    console.log('测试钉钉机器人，Webhook:', dingTalkSettings.webhookUrl)
+    
+    // 调用后端API测试钉钉机器人
+    const response = await testDingTalkApi({
+      webhookUrl: dingTalkSettings.webhookUrl,
+      secret: dingTalkSettings.secret
+    })
+    console.log('测试钉钉机器人API响应:', response)
+    
+    ElMessage.success('钉钉机器人测试成功')
+  } catch (error: any) {
+    console.error('测试钉钉机器人失败 - 完整错误:', error)
+    console.error('测试钉钉机器人失败 - 响应数据:', error.response?.data)
+    console.error('测试钉钉机器人失败 - 状态码:', error.response?.status)
+    console.error('测试钉钉机器人失败 - 请求URL:', error.config?.url)
+    
+    let errorMessage = '测试钉钉机器人失败'
+    if (error.response?.status === 404) {
+      errorMessage = '钉钉机器人API接口不存在，请检查后端实现'
+    } else if (error.response?.status === 500) {
+      errorMessage = '服务器内部错误，请检查后端日志'
+    } else if (error.message) {
+      errorMessage = `测试钉钉机器人失败: ${error.message}`
     }
     
     ElMessage.error(errorMessage)
