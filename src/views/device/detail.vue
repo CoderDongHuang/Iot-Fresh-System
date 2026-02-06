@@ -183,27 +183,45 @@ const fetchHistoryData = async () => {
   try {
     const vid = route.params.vid as string
     const params = {
-      timeRange: timeRange.value
+      vid: vid,
+      timeRange: timeRange.value,
+      pageSize: 100,    // 请求100条数据
+      pageNum: 1        // 第一页
     }
-    const response: any = await getDeviceHistoryData(vid, params)
+    
+    console.log('🔍 查询历史数据参数:', params)
+    const response: any = await getDeviceHistoryData(params)
+    console.log('🔍 历史数据API原始响应:', response)
     
     // 处理响应数据，兼容不同格式
     let responseData = response
     if (response && response.code !== undefined) {
       // 如果响应遵循标准格式 { code, msg, data }
       responseData = response.data
+      console.log('🔍 提取后的数据data字段:', responseData)
     }
     
     // 检查返回的数据格式并设置到historyData
     if (Array.isArray(responseData)) {
       // 如果直接返回数组
       historyData.value = responseData
+      console.log('✅ 历史数据加载成功，数组长度:', responseData.length)
     } else if (responseData && responseData.list && Array.isArray(responseData.list)) {
       // 如果返回的是包含list的对象
       historyData.value = responseData.list
+      console.log('✅ 历史数据加载成功，list长度:', responseData.list.length)
     } else {
       // 其他情况，直接赋值（可能为空数组）
       historyData.value = []
+      console.log('⚠️ 历史数据格式异常，设置为空数组')
+    }
+    
+    console.log('📊 最终设置的历史数据:', historyData.value)
+    
+    // 如果数据量少，自动测试其他时间范围
+    if (historyData.value.length <= 1) {
+      console.log('⚠️ 数据量较少，测试其他时间范围...')
+      await testOtherTimeRanges(vid)
     }
   } catch (error) {
     console.error('获取历史数据失败:', error)
@@ -211,6 +229,45 @@ const fetchHistoryData = async () => {
     historyData.value = [] // 错误时清空历史数据
   } finally {
     loadingHistoryData.value = false
+  }
+}
+
+// 测试其他时间范围
+const testOtherTimeRanges = async (vid: string) => {
+  const timeRanges = ['12h', '24h', '7d', '30d']
+  
+  for (let range of timeRanges) {
+    try {
+      const testParams = {
+        vid: vid,
+        timeRange: range,
+        pageSize: 10  // 只查询少量数据测试
+      }
+      
+      console.log(`🔍 测试时间范围 ${range}:`, testParams)
+      const response: any = await getDeviceHistoryData(testParams)
+      
+      // 处理响应数据，兼容不同格式
+      let responseData = response
+      if (response && response.code !== undefined) {
+        // 如果响应遵循标准格式 { code, msg, data }
+        responseData = response.data
+      }
+      
+      // 获取数据长度
+      let dataLength = 0
+      if (Array.isArray(responseData)) {
+        dataLength = responseData.length
+      } else if (responseData && responseData.list && Array.isArray(responseData.list)) {
+        dataLength = responseData.list.length
+      } else if (responseData && responseData.total !== undefined) {
+        dataLength = responseData.total
+      }
+      
+      console.log(`📊 时间范围 ${range} 的数据量:`, dataLength)
+    } catch (error) {
+      console.log(`❌ 时间范围 ${range} 查询失败:`, error)
+    }
   }
 }
 
