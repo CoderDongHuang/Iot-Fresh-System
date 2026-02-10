@@ -35,3 +35,8 @@ export function controlDevice(vid: string, command: any): Promise<ResponseData> 
 export function getDeviceStatusStats(): Promise<any> {
   return service.get('http://localhost:8080/api/device/status-stats')
 }
+
+// 新增设备
+export function addDevice(deviceData: any): Promise<any> {
+  return service.post('http://localhost:8080/api/device/add', deviceData)
+}

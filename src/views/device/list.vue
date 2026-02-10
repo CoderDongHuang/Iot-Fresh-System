@@ -5,11 +5,15 @@
         <div class="header">
           <h3>设备管理</h3>
           <div class="controls">
-            <el-button type="primary" @click="refreshList">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
-          </div>
+          <el-button type="primary" @click="refreshList">
+            <el-icon><Refresh /></el-icon>
+            刷新
+          </el-button>
+          <el-button type="success" @click="showAddDialog">
+            <el-icon><Plus /></el-icon>
+            新增设备
+          </el-button>
+        </div>
         </div>
       </template>
       
@@ -30,9 +34,10 @@
           </el-col>
           <el-col :span="6">
             <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="searchDevices">
-              <el-option label="在线" value="online" />
-              <el-option label="离线" value="offline" />
-              <el-option label="故障" value="fault" />
+              <el-option label="在线" value="1" />
+              <el-option label="离线" value="0" />
+              <el-option label="故障" value="2" />
+              <el-option label="维护" value="3" />
             </el-select>
           </el-col>
           <el-col :span="6">
@@ -59,21 +64,21 @@
         </el-table-column>
         <el-table-column prop="vid" label="设备VID" min-width="120" />
         <el-table-column prop="location" label="位置" min-width="120" />
-        <el-table-column prop="deviceType" label="设备类型" min-width="100" />
+        <el-table-column prop="deviceType" label="设备类型" min-width="100">
+          <template #default="{ row }">
+            {{ deviceTypeMap[row.deviceType] || row.deviceType }}
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
+            <el-tag :type="deviceStatusMap[row.status]?.type || 'info'" size="small">
+              {{ deviceStatusMap[row.status]?.label || '未知' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="最后在线" min-width="150">
           <template #default="{ row }">
-            {{ 
-              row.lastOnlineTime ? formatDate(row.lastOnlineTime) : 
-              (row.lastOnline_time ? formatDate(row.lastOnline_time) : 
-              (row.last_heartbeat ? formatDate(row.last_heartbeat) : '-')) 
-            }}
+            {{ row.lastOnlineTime ? formatDate(row.lastOnlineTime) : '-' }}
           </template>
         </el-table-column>
         <el-table-column label="温度(℃)" min-width="100">
@@ -121,6 +126,85 @@
         />
       </div>
     </el-card>
+
+    <!-- 新增设备对话框 -->
+    <el-dialog 
+      v-model="addDialogVisible" 
+      title="新增设备" 
+      width="500px"
+      :before-close="handleCloseDialog"
+    >
+      <el-form 
+        ref="addFormRef" 
+        :model="addForm" 
+        :rules="addFormRules" 
+        label-width="100px"
+      >
+        <el-form-item label="设备名称" prop="deviceName">
+          <el-input 
+            v-model="addForm.deviceName" 
+            placeholder="请输入设备名称"
+            maxlength="50"
+            show-word-limit
+          />
+        </el-form-item>
+        
+        <el-form-item label="设备VID" prop="vid">
+          <el-input 
+            v-model="addForm.vid" 
+            placeholder="请输入设备唯一标识VID"
+            maxlength="20"
+            show-word-limit
+          />
+        </el-form-item>
+        
+        <el-form-item label="设备类型" prop="deviceType">
+          <el-select v-model="addForm.deviceType" placeholder="请选择设备类型" style="width: 100%">
+            <el-option label="冷库设备" value="cold_storage" />
+            <el-option label="温控设备" value="temperature_control" />
+            <el-option label="湿度设备" value="humidity_control" />
+            <el-option label="监控设备" value="monitor" />
+            <el-option label="其他设备" value="other" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="安装位置" prop="location">
+          <el-input 
+            v-model="addForm.location" 
+            placeholder="请输入设备安装位置"
+            maxlength="100"
+            show-word-limit
+          />
+        </el-form-item>
+        
+        <el-form-item label="设备状态" prop="status">
+          <el-radio-group v-model="addForm.status">
+            <el-radio label="online">在线</el-radio>
+            <el-radio label="offline">离线</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <el-form-item label="描述信息" prop="description">
+          <el-input 
+            v-model="addForm.description" 
+            type="textarea" 
+            :rows="3"
+            placeholder="请输入设备描述信息（可选）"
+            maxlength="200"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="handleCloseDialog">取消</el-button>
+          <el-button type="primary" @click="handleAddDevice" :loading="addLoading">
+            确认新增
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -128,8 +212,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, Search, ArrowDown } from '@element-plus/icons-vue'
-import { getDeviceList, getDeviceStatusStats } from '@/api/device'
+import { Refresh, Search, ArrowDown, Plus } from '@element-plus/icons-vue'
+import { getDeviceList, getDeviceStatusStats, addDevice } from '@/api/device'
 import { exportSingleToCSV } from '@/utils/export'
 import type { DeviceInfo } from '@/types/api'
 import { formatDate } from '@/utils/date'
@@ -144,6 +228,57 @@ const pageSize = ref(10)
 const total = ref(0)
 const searchQuery = ref('')
 const statusFilter = ref('')
+
+// 新增设备相关数据
+const addDialogVisible = ref(false)
+const addLoading = ref(false)
+const addFormRef = ref()
+const addForm = reactive({
+  deviceName: '',
+  vid: '',
+  deviceType: '',
+  location: '',
+  status: 'online',
+  description: ''
+})
+
+// 表单验证规则
+const addFormRules = {
+  deviceName: [
+    { required: true, message: '请输入设备名称', trigger: 'blur' },
+    { min: 2, max: 50, message: '设备名称长度在 2 到 50 个字符', trigger: 'blur' }
+  ],
+  vid: [
+    { required: true, message: '请输入设备VID', trigger: 'blur' },
+    { min: 3, max: 20, message: '设备VID长度在 3 到 20 个字符', trigger: 'blur' }
+  ],
+  deviceType: [
+    { required: true, message: '请选择设备类型', trigger: 'change' }
+  ],
+  location: [
+    { required: true, message: '请输入安装位置', trigger: 'blur' },
+    { min: 2, max: 100, message: '安装位置长度在 2 到 100 个字符', trigger: 'blur' }
+  ],
+  status: [
+    { required: true, message: '请选择设备状态', trigger: 'change' }
+  ]
+}
+
+// 设备类型映射
+const deviceTypeMap: Record<string, string> = {
+  'storage': '存储设备',
+  'transport': '运输设备',
+  'monitor': '监控设备',
+  'control': '控制设备'
+}
+
+// 设备状态映射
+const deviceStatusMap: Record<number, { label: string, type: string }> = {
+  0: { label: '离线', type: 'info' },
+  1: { label: '在线', type: 'success' },
+  2: { label: '故障', type: 'danger' },
+  3: { label: '维护', type: 'warning' }
+}
 
 // 获取设备列表
 const fetchDeviceList = async () => {
@@ -169,17 +304,23 @@ const fetchDeviceList = async () => {
     }
     
     if (resultData && resultData.list) {
-      // 数据标准化：确保使用前端期望的字段名
+      // 数据标准化：适配数据库字段名
       const normalizedList = resultData.list.map((device: any) => ({
         ...device,
-        // 时间字段标准化
-        lastOnlineTime: device.lastOnlineTime || device.lastOnline_time || device.last_heartbeat || device.lastHeartbeat || null,
-        createTime: device.createTime || device.create_time || device.create_time || null,
-        // 其他字段标准化
-        deviceName: device.deviceName || device.device_name || device.name || device.deviceName,
-        deviceType: device.deviceType || device.device_type || device.type || device.category,
-        location: device.location || device.loc || device.place || device.installLocation || '-',
-        status: device.status || device.state || device.devStatus
+        // 使用数据库字段名
+        vid: device.vid,
+        deviceName: device.device_name || device.deviceName,
+        deviceType: device.device_type || device.deviceType,
+        status: device.status,
+        location: device.location,
+        description: device.description,
+        manufacturer: device.manufacturer,
+        model: device.model,
+        firmwareVersion: device.firmware_version,
+        ipAddress: device.ip_address,
+        macAddress: device.mac_address,
+        lastOnlineTime: device.last_online_time || device.lastOnlineTime,
+        createdAt: device.created_at || device.createTime
       }))
       
       deviceList.value = normalizedList
@@ -229,71 +370,34 @@ const handleCurrentChange = (page: number) => {
 
 // 状态相关函数
 const getStatusIcon = (status: string | number) => {
-  // 将状态转换为字符串进行比较
-  const statusStr = String(status).toLowerCase();
-  switch (statusStr) {
-    case 'online':
-    case '1':
+  const statusNum = typeof status === 'string' ? parseInt(status) : status
+  switch (statusNum) {
+    case 1:
       return 'el-icon-CircleCheck'
-    case 'offline':
-    case '0':
+    case 0:
       return 'el-icon-CircleClose'
-    case 'fault':
-    case '2':
+    case 2:
       return 'el-icon-Warning'
+    case 3:
+      return 'el-icon-Tools'
     default:
       return 'el-icon-Question'
   }
 }
 
 const getStatusColor = (status: string | number) => {
-  const statusStr = String(status).toLowerCase();
-  switch (statusStr) {
-    case 'online':
-    case '1':
+  const statusNum = typeof status === 'string' ? parseInt(status) : status
+  switch (statusNum) {
+    case 1:
       return '#67C23A'
-    case 'offline':
-    case '0':
+    case 0:
       return '#909399'
-    case 'fault':
-    case '2':
+    case 2:
       return '#F56C6C'
+    case 3:
+      return '#E6A23C'
     default:
       return '#909399'
-  }
-}
-
-const getStatusTagType = (status: string | number) => {
-  const statusStr = String(status).toLowerCase();
-  switch (statusStr) {
-    case 'online':
-    case '1':
-      return 'success'
-    case 'offline':
-    case '0':
-      return 'info'
-    case 'fault':
-    case '2':
-      return 'danger'
-    default:
-      return 'info'
-  }
-}
-
-const getStatusText = (status: string | number) => {
-  const statusStr = String(status).toLowerCase();
-  switch (statusStr) {
-    case 'online':
-    case '1':
-      return '在线'
-    case 'offline':
-    case '0':
-      return '离线'
-    case 'fault':
-    case '2':
-      return '故障'
-    default:
-      return '未知'
   }
 }
 
@@ -340,6 +444,59 @@ const exportData = (device: DeviceInfo) => {
   
   exportSingleToCSV(device, headers, headerMapping, filename)
   ElMessage.success(`设备 ${device.deviceName || device.vid} 数据导出成功`)
+}
+
+// 新增设备相关函数
+const showAddDialog = () => {
+  addDialogVisible.value = true
+  // 重置表单
+  Object.assign(addForm, {
+    deviceName: '',
+    vid: '',
+    deviceType: '',
+    location: '',
+    status: 'online',
+    description: ''
+  })
+  // 清除验证状态
+  if (addFormRef.value) {
+    addFormRef.value.clearValidate()
+  }
+}
+
+const handleCloseDialog = () => {
+  addDialogVisible.value = false
+}
+
+const handleAddDevice = async () => {
+  if (!addFormRef.value) return
+  
+  // 表单验证
+  const valid = await addFormRef.value.validate().catch(() => false)
+  if (!valid) {
+    ElMessage.warning('请完善表单信息')
+    return
+  }
+  
+  addLoading.value = true
+  try {
+    // 调用新增设备API
+    const result = await addDevice(addForm)
+    
+    if (result.success) {
+      ElMessage.success('设备新增成功')
+      addDialogVisible.value = false
+      // 刷新设备列表
+      fetchDeviceList()
+    } else {
+      ElMessage.error(`设备新增失败: ${result.message}`)
+    }
+  } catch (error: any) {
+    console.error('新增设备失败:', error)
+    ElMessage.error(`新增设备失败: ${error.message || '未知错误'}`)
+  } finally {
+    addLoading.value = false
+  }
 }
 
 // 初始化

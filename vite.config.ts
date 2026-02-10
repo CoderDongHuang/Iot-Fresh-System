@@ -10,9 +10,15 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 export default defineConfig({
   plugins: [
     vue(),
-    // 自动导入Element Plus组件
+    // 自动导入Element Plus组件和Vue API
     AutoImport({
+      imports: [
+        'vue',
+        'vue-router',
+        'pinia'
+      ],
       resolvers: [ElementPlusResolver()],
+      dts: 'src/auto-imports.d.ts'
     }),
     Components({
       resolvers: [ElementPlusResolver()],
