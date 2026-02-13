@@ -18,12 +18,13 @@ export function getDeviceRealTimeData(vid: string): Promise<DeviceData> {
 
 // 获取设备历史数据
 export function getDeviceHistoryData(params: any): Promise<PageResult<DeviceData>> {
-  return service.get('http://localhost:8080/api/device/history-data', { params })
+  const { vid, ...queryParams } = params
+  return service.get(`http://localhost:8080/api/device/${vid}/history-data`, { params: queryParams })
 }
 
 // 获取所有设备实时数据
 export function getAllDevicesRealTimeData(): Promise<DeviceData[]> {
-  return service.get('http://localhost:8080/api/device/all-real-time-data')
+  return service.get('http://localhost:8080/api/device/real-time-data')
 }
 
 // 控制设备

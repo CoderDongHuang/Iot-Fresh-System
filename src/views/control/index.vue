@@ -206,18 +206,44 @@ const commandHistory = ref([
 // 获取设备列表
 const fetchDeviceList = async () => {
   try {
-    const response = await getDeviceList({ pageNum: 1, pageSize: 100 }) // 获取所有设备
-    availableDevices.value = response.list || []
+    const response: any = await getDeviceList({ pageNum: 1, pageSize: 100 }) // 获取所有设备
     
-    // 如果路由中有设备ID参数，选择该设备
-    const deviceIdFromRoute = route.query.device as string
-    if (deviceIdFromRoute) {
-      selectedDeviceId.value = deviceIdFromRoute
-      await fetchDeviceDetail(deviceIdFromRoute)
-    } else if (availableDevices.value.length > 0) {
-      // 如果没有指定设备，选择第一个设备
-      selectedDeviceId.value = availableDevices.value[0].vid
-      await fetchDeviceDetail(availableDevices.value[0].vid)
+    // 处理响应数据，兼容不同格式
+    let resultData = null
+    if (response && response.data) {
+      // 标准格式: { code: 200, msg: 'success', data: { list: [], total: 100 } }
+      resultData = response.data
+    } else if (response && response.list) {
+      // 直接格式: { list: [], total: 100 }
+      resultData = response
+    }
+    
+    if (resultData && resultData.list) {
+      // 数据标准化：适配数据库字段名
+      availableDevices.value = resultData.list.map((device: any) => ({
+        ...device,
+        // 使用数据库字段名
+        vid: device.vid,
+        deviceName: device.device_name || device.deviceName,
+        deviceType: device.device_type || device.deviceType,
+        status: device.status,
+        location: device.location,
+        lastOnlineTime: device.last_online_time || device.lastOnlineTime
+      }))
+      
+      // 如果路由中有设备ID参数，选择该设备
+      const deviceIdFromRoute = route.query.device as string
+      if (deviceIdFromRoute) {
+        selectedDeviceId.value = deviceIdFromRoute
+        await fetchDeviceDetail(deviceIdFromRoute)
+      } else if (availableDevices.value.length > 0) {
+        // 如果没有指定设备，选择第一个设备
+        selectedDeviceId.value = availableDevices.value[0].vid
+        await fetchDeviceDetail(availableDevices.value[0].vid)
+      }
+    } else {
+      console.warn('设备列表数据格式不正确:', response)
+      availableDevices.value = []
     }
   } catch (error) {
     console.error('获取设备列表失败:', error)
@@ -330,34 +356,32 @@ const goBack = () => {
 
 // 状态相关函数
 const getStatusTagType = (status: string | number) => {
-  const statusStr = String(status).toLowerCase();
-  switch (statusStr) {
-    case 'online':
-    case '1':
+  const statusNum = typeof status === 'string' ? parseInt(status) : status
+  switch (statusNum) {
+    case 1:
       return 'success'
-    case 'offline':
-    case '0':
+    case 0:
       return 'info'
-    case 'fault':
-    case '2':
+    case 2:
       return 'danger'
+    case 3:
+      return 'warning'
     default:
       return 'info'
   }
 }
 
 const getStatusText = (status: string | number) => {
-  const statusStr = String(status).toLowerCase();
-  switch (statusStr) {
-    case 'online':
-    case '1':
+  const statusNum = typeof status === 'string' ? parseInt(status) : status
+  switch (statusNum) {
+    case 1:
       return '在线'
-    case 'offline':
-    case '0':
+    case 0:
       return '离线'
-    case 'fault':
-    case '2':
+    case 2:
       return '故障'
+    case 3:
+      return '维护'
     default:
       return '未知'
   }

@@ -157,6 +157,12 @@ const handleCurrentChange = (page: number) => {
 const fetchHistoryData = async () => {
   loading.value = true
   try {
+    // 验证设备VID
+    if (!searchForm.vid || searchForm.vid.trim() === '') {
+      ElMessage.error('请先输入设备VID')
+      return
+    }
+    
     // 构建查询参数
     const params: any = {
       pageNum: currentPage.value,

@@ -81,18 +81,9 @@
             {{ row.lastOnlineTime ? formatDate(row.lastOnlineTime) : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="温度(℃)" min-width="100">
-          <template #default="{ row }">
-            <span v-if="row.currentData?.tin !== undefined">{{ row.currentData?.tin }}℃</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="光照(lux)" min-width="100">
-          <template #default="{ row }">
-            <span v-if="row.currentData?.lxin !== undefined">{{ row.currentData?.lxin }} lux</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
+        <el-table-column prop="manufacturer" label="制造商" min-width="120" />
+        <el-table-column prop="model" label="型号" min-width="100" />
+        <el-table-column prop="firmwareVersion" label="固件版本" min-width="100" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click.stop="viewDetail(row)">详情</el-button>
