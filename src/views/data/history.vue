@@ -2,8 +2,26 @@
   <div class="data-history-view">
     <el-card shadow="never" class="search-card">
       <el-form :model="searchForm" inline class="search-form">
-        <el-form-item label="设备VID">
-          <el-input v-model="searchForm.vid" placeholder="请输入设备VID" clearable />
+        <el-form-item label="选择设备">
+          <el-select v-model="searchForm.vid" placeholder="请选择设备" clearable style="width: 300px;">
+            <el-option
+              v-for="device in availableDevices"
+              :key="device.vid"
+              :label="`${device.deviceName} (${device.vid})`"
+              :value="device.vid"
+            >
+              <div class="device-option">
+                <span>{{ device.deviceName }}</span>
+                <el-tag 
+                  :type="getStatusTagType(device.status)" 
+                  size="small"
+                  style="margin-left: 10px;"
+                >
+                  {{ getStatusText(device.status) }}
+                </el-tag>
+              </div>
+            </el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="时间范围">
           <el-date-picker
@@ -103,9 +121,20 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getDeviceHistoryData } from '@/api/device'
+import { getDeviceHistoryData, getDeviceList } from '@/api/device'
 import { exportToCSV } from '@/utils/export'
-import type { DeviceData, PageResult } from '@/types/api'
+import type { DeviceData, DeviceInfo, PageResult } from '@/types/api'
+
+// 设备类型映射
+const deviceTypeMap: Record<string, string> = {
+  'storage': '存储设备',
+  'transport': '运输设备',
+  'display': '展示设备',
+  'processing': '加工设备',
+  'quality': '质检设备',
+  'monitoring': '监控设备',
+  'warehouse': '仓储设备'
+}
 
 // 搜索表单
 const searchForm = reactive({
@@ -116,6 +145,7 @@ const searchForm = reactive({
 
 // 分页数据
 const historyData = ref<DeviceData[]>([])
+const availableDevices = ref<DeviceInfo[]>([])
 const loading = ref(false)
 const exportLoading = ref(false)
 const currentPage = ref(1)
@@ -198,24 +228,27 @@ const getTempClass = (temp: number) => {
   return 'temp-normal'
 }
 
-// 获取状态类型
-const getStatusType = (status: number | undefined) => {
+// 状态相关函数
+const getStatusType = (status: string | number | undefined) => {
   if (status === undefined) return 'info'
-  switch (status) {
+  const statusNum = typeof status === 'string' ? parseInt(status) : status
+  switch (statusNum) {
     case 1: return 'success'
-    case 2: return 'warning'
-    case 3: return 'danger'
+    case 0: return 'info'
+    case 2: return 'danger'
+    case 3: return 'warning'
     default: return 'info'
   }
 }
 
-// 获取状态文本
-const getStatusText = (status: number | undefined) => {
+const getStatusText = (status: string | number | undefined) => {
   if (status === undefined) return '未知'
-  switch (status) {
-    case 1: return '运行'
-    case 2: return '待机'
-    case 3: return '故障'
+  const statusNum = typeof status === 'string' ? parseInt(status) : status
+  switch (statusNum) {
+    case 1: return '在线'
+    case 0: return '离线'
+    case 2: return '故障'
+    case 3: return '维护'
     default: return '未知'
   }
 }
@@ -256,7 +289,43 @@ const exportData = async () => {
   }
 }
 
+// 获取设备列表
+const fetchDeviceList = async () => {
+  try {
+    const response: any = await getDeviceList({ pageNum: 1, pageSize: 1000 })
+    
+    // 处理响应数据，兼容不同格式
+    let resultData = null
+    if (response && response.data) {
+      resultData = response.data
+    } else if (response && response.list) {
+      resultData = response
+    }
+    
+    if (resultData && resultData.list) {
+      // 数据标准化：适配数据库字段名
+      availableDevices.value = resultData.list.map((device: any) => ({
+        ...device,
+        vid: device.vid,
+        deviceName: device.device_name || device.deviceName,
+        deviceType: device.device_type || device.deviceType,
+        status: device.status,
+        location: device.location
+      }))
+    }
+  } catch (error) {
+    console.error('获取设备列表失败:', error)
+    ElMessage.error('获取设备列表失败')
+  }
+}
+
+// 设备选择器状态函数（与表格状态函数保持一致）
+const getStatusTagType = (status: string | number | undefined) => {
+  return getStatusType(status)
+}
+
 onMounted(() => {
+  fetchDeviceList()
   fetchHistoryData()
 })
 </script>
@@ -320,5 +389,19 @@ onMounted(() => {
 
 .temp-normal {
   color: var(--text-color-primary);
+}
+
+.device-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.device-option span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

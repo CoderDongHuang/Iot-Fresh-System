@@ -41,7 +41,11 @@
       >
         <el-table-column prop="vid" label="设备VID" width="150" sortable />
         <el-table-column prop="deviceName" label="设备名称" width="150" sortable />
-        <el-table-column prop="deviceType" label="设备类型" width="120" sortable />
+        <el-table-column prop="deviceType" label="设备类型" width="120" sortable>
+          <template #default="{ row }">
+            {{ deviceTypeMap[row.deviceType] || row.deviceType }}
+          </template>
+        </el-table-column>
         <el-table-column prop="location" label="位置" width="150" sortable />
         <el-table-column label="内部温度(℃)" width="130" sortable prop="tin">
           <template #default="{ row }">
@@ -90,6 +94,17 @@ import { Refresh, SwitchButton } from '@element-plus/icons-vue'
 import { getAllDevicesRealTimeData } from '@/api/device'
 import type { DeviceData } from '@/types/api'
 import { formatDate } from '@/utils/date'
+
+// 设备类型映射
+const deviceTypeMap: Record<string, string> = {
+  'storage': '存储设备',
+  'transport': '运输设备',
+  'display': '展示设备',
+  'processing': '加工设备',
+  'quality': '质检设备',
+  'monitoring': '监控设备',
+  'warehouse': '仓储设备'
+}
 
 const router = useRouter()
 

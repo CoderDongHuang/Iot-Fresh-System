@@ -259,8 +259,11 @@ const addFormRules = {
 const deviceTypeMap: Record<string, string> = {
   'storage': '存储设备',
   'transport': '运输设备',
-  'monitor': '监控设备',
-  'control': '控制设备'
+  'display': '展示设备',
+  'processing': '加工设备',
+  'quality': '质检设备',
+  'monitoring': '监控设备',
+  'warehouse': '仓储设备'
 }
 
 // 设备状态映射
