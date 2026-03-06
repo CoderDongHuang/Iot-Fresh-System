@@ -189,7 +189,7 @@ const fetchHistoryData = async () => {
   try {
     // 验证设备VID
     if (!searchForm.vid || searchForm.vid.trim() === '') {
-      ElMessage.error('请先输入设备VID')
+      ElMessage.error('请先选择设备')
       return
     }
     
@@ -197,8 +197,12 @@ const fetchHistoryData = async () => {
     const params: any = {
       pageNum: currentPage.value,
       pageSize: pageSize.value,
-      vid: searchForm.vid,
-      dataType: searchForm.dataType
+      vid: searchForm.vid
+    }
+    
+    // 只有当选择了数据类型时才添加该参数
+    if (searchForm.dataType && searchForm.dataType.trim() !== '') {
+      params.dataType = searchForm.dataType
     }
     
     // 添加时间范围参数
@@ -207,11 +211,47 @@ const fetchHistoryData = async () => {
       params.endTime = searchForm.dateRange[1]
     }
     
-    const response = await getDeviceHistoryData(params)
-    historyData.value = response.list || []
-    total.value = response.total || 0
+    console.log('查询参数:', params)
     
-    ElMessage.success('查询成功')
+    const response: any = await getDeviceHistoryData(params)
+    
+    console.log('原始响应数据:', response)
+    
+    // 处理响应数据，兼容不同格式
+    let resultData = null
+    if (response && response.data) {
+      resultData = response.data
+    } else if (response && response.list) {
+      resultData = response
+    }
+    
+    console.log('处理后数据:', resultData)
+    
+    // 提取历史数据列表
+    if (resultData && resultData.list) {
+      console.log('resultData.list:', resultData.list)
+      
+      // 如果list本身是一个对象，尝试提取其中的list字段
+      if (typeof resultData.list === 'object' && resultData.list.list) {
+        console.log('嵌套list数据:', resultData.list.list)
+        historyData.value = resultData.list.list || []
+        total.value = resultData.list.total || 0
+      } else {
+        historyData.value = resultData.list || []
+        total.value = resultData.total || 0
+      }
+    } else {
+      historyData.value = []
+      total.value = 0
+    }
+    
+    console.log('最终数据:', historyData.value)
+    
+    if (historyData.value.length === 0) {
+      ElMessage.info('查询成功，但没有找到相关数据')
+    } else {
+      ElMessage.success(`查询成功，共找到 ${historyData.value.length} 条数据`)
+    }
   } catch (error) {
     console.error('查询历史数据失败:', error)
     ElMessage.error('查询失败')

@@ -112,27 +112,56 @@ const router = useRouter()
 const realTimeData = ref<DeviceData[]>([])
 const loading = ref(false)
 const autoRefresh = ref(false)
-const refreshInterval = ref(10000) // 默认10秒
+const refreshInterval = ref(30000) // 调整为30秒，减少请求频率
 let refreshTimer: NodeJS.Timeout | null = null
+let lastRequestTime = 0
+const MIN_REQUEST_INTERVAL = 5000 // 最小请求间隔5秒
 
 // 获取实时数据
 const fetchRealTimeData = async () => {
+  // 节流控制：避免过于频繁的请求
+  const now = Date.now()
+  if (now - lastRequestTime < MIN_REQUEST_INTERVAL) {
+    console.log('请求过于频繁，跳过本次请求')
+    return
+  }
+  
+  // 如果已经在加载中，跳过本次请求
+  if (loading.value) {
+    return
+  }
+  
   loading.value = true
+  lastRequestTime = now
+  const startTime = Date.now()
+  
   try {
-    const data = await getAllDevicesRealTimeData()
-    realTimeData.value = data.map(item => ({
-      ...item,
-      // 确保必要字段存在
-      tin: item.tin ?? 0,
-      tout: item.tout ?? 0,
-      lxin: item.lxin ?? 0,
-      brightness: item.brightness ?? 0,
-      vStatus: item.vStatus ?? 0,
-      timestamp: item.timestamp ?? new Date().toISOString()
-    }))
+    // 添加超时控制（5秒超时）
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('请求超时')), 5000)
+    })
+    
+    const dataPromise = getAllDevicesRealTimeData()
+    const data = await Promise.race([dataPromise, timeoutPromise])
+    
+    // 优化数据处理，避免不必要的映射
+    realTimeData.value = Array.isArray(data) ? data : []
+    
+    const endTime = Date.now()
+    const duration = endTime - startTime
+    console.log(`数据获取耗时: ${duration}ms`)
+    
+    // 如果请求耗时过长，建议调整刷新频率
+    if (duration > 1000) {
+      console.warn('数据请求耗时过长，建议增加刷新间隔')
+    }
+    
   } catch (error) {
     console.error('获取实时数据失败:', error)
-    ElMessage.error('获取实时数据失败')
+    // 只在第一次失败时显示错误提示，避免频繁弹窗
+    if (!realTimeData.value.length) {
+      ElMessage.error('获取实时数据失败')
+    }
   } finally {
     loading.value = false
   }
@@ -230,6 +259,14 @@ const faultCount = computed(() => realTimeData.value.filter(d => d.vStatus === 2
 // 初始化
 onMounted(() => {
   fetchRealTimeData()
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
 })
 
 // 组件卸载时清理定时器
