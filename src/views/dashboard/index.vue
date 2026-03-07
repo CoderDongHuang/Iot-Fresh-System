@@ -423,21 +423,25 @@ const handleExport = async () => {
       cancelButtonText: '取消',
       type: 'info',
     }).then(async () => {
-      // 导出设备列表数据
+      // 导出设备列表数据（与表格显示字段保持一致）
       const exportData = deviceList.value.map(item => ({
-        vid: item.vid,
+        vid: item.vid || '-',
         deviceName: item.deviceName || '-',
-        deviceType: item.deviceType || '-',
-        location: item.location || '-',
+        deviceType: item.deviceType ? (item.deviceType === 'storage' ? '存储设备' : 
+                                      item.deviceType === 'transport' ? '运输设备' : 
+                                      item.deviceType === 'monitor' ? '监控设备' : 
+                                      item.deviceType === 'control' ? '控制设备' : item.deviceType) : '-',
         status: item.status ? (typeof item.status === 'number' ? 
-          (item.status === 0 ? '离线' : item.status === 1 ? '在线' : '故障') : 
+          (item.status === 0 ? '离线' : item.status === 1 ? '在线' : 
+           item.status === 2 ? '故障' : item.status === 3 ? '维护' : '未知') : 
           item.status.toString()) : '未知',
-        lastOnlineTime: item.lastOnlineTime || '-',
-        createTime: item.createTime || '-',
-        remarks: item.remarks || '-'
+        location: item.location || '-',
+        contactPhone: item.contactPhone || '-',
+        lastHeartbeat: item.lastHeartbeat ? new Date(item.lastHeartbeat).toLocaleString() : '-',
+        description: item.description || '-'
       }))
       
-      const headers = ['设备VID', '设备名称', '设备类型', '位置', '状态', '最后在线时间', '创建时间', '备注']
+      const headers = ['设备VID', '设备名称', '设备类型', '状态', '位置', '联系电话', '最后心跳', '描述']
       const filename = `设备状态数据_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
       
       exportToCSV(exportData, headers, filename)
