@@ -310,12 +310,15 @@ const fetchDeviceList = async () => {
         description: device.description,
         manufacturer: device.manufacturer,
         model: device.model,
-        firmwareVersion: device.firmware_version,
-        ipAddress: device.ip_address,
-        macAddress: device.mac_address,
+        firmwareVersion: device.firmware_version || device.firmwareVersion,
+        ipAddress: device.ip_address || device.ipAddress,
+        macAddress: device.mac_address || device.macAddress,
         lastOnlineTime: device.last_online_time || device.lastOnlineTime,
         createdAt: device.created_at || device.createTime
       }))
+      
+      console.log('原始数据:', resultData.list)
+      console.log('标准化后数据:', normalizedList)
       
       deviceList.value = normalizedList
       total.value = resultData.total || resultData.list.length
