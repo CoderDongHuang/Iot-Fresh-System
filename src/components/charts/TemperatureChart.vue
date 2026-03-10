@@ -1,5 +1,5 @@
 <template>
-  <div ref="chartRef" class="chart-container"></div>
+  <div ref="chartRef" class="chart-container" @click="handleChartClick"></div>
 </template>
 
 <script setup lang="ts">
@@ -13,6 +13,11 @@ interface Props {
   deviceVid?: string
   showTitle?: boolean
 }
+
+const emit = defineEmits<{
+  click: []
+  chartClick: [params: any]
+}>()
 
 const props = withDefaults(defineProps<Props>(), {
   timeRange: '1h',
@@ -29,6 +34,11 @@ const initChart = () => {
   if (!chartRef.value) return
   
   chartInstance = echarts.init(chartRef.value)
+  
+  // 添加点击事件
+  chartInstance.on('click', (params) => {
+    emit('chartClick', params)
+  })
   
   const option: echarts.EChartsOption = {
     backgroundColor: 'transparent',
@@ -417,6 +427,11 @@ onUnmounted(() => {
     clearInterval(dataUpdateInterval)
   }
 })
+
+// 处理图表点击事件
+const handleChartClick = () => {
+  emit('click')
+}
 
 // 暴露方法给父组件
 defineExpose({

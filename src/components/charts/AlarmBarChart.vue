@@ -1,5 +1,5 @@
 <template>
-  <div class="alarm-bar-chart" ref="chartRef" :style="{ height: height, width: width }" />
+  <div class="alarm-bar-chart" ref="chartRef" :style="{ height: height, width: width }" @click="handleChartClick" />
 </template>
 
 <script setup lang="ts">
@@ -31,8 +31,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 定义事件
 interface Emits {
-  (e: 'click', params: any): void
-  (e: 'data-update', data: AlarmChartData[]): void
+  click: []
+  chartClick: [params: any]
+  'data-update': [data: AlarmChartData[]]
 }
 
 const emit = defineEmits<Emits>()
@@ -52,7 +53,7 @@ const initChart = () => {
     
     // 添加点击事件
     chart.on('click', (params) => {
-      emit('click', params)
+      emit('chartClick', params)
     })
   }
 }
@@ -179,6 +180,11 @@ const handleResize = () => {
       console.warn('ECharts resize error:', error)
     }
   }
+}
+
+// 处理图表点击事件
+const handleChartClick = () => {
+  emit('click')
 }
 
 window.addEventListener('resize', handleResize)

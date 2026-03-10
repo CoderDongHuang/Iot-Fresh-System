@@ -122,7 +122,12 @@
                 </div>
               </div>
             </template>
-            <TemperatureChart ref="tempChartRef" :time-range="tempTimeRange" />
+            <TemperatureChart 
+              ref="tempChartRef" 
+              :time-range="tempTimeRange"
+              @click="handleChartClick('temperature')"
+              class="chart-item"
+            />
           </el-card>
         </el-col>
         
@@ -133,7 +138,12 @@
                 <span>设备状态分布</span>
               </div>
             </template>
-            <DevicePieChart ref="deviceChartRef" :data="statistics.deviceStatusDistribution" />
+            <DevicePieChart 
+              ref="deviceChartRef" 
+              :data="statistics.deviceStatusDistribution"
+              @click="handleChartClick('device')"
+              class="chart-item"
+            />
           </el-card>
         </el-col>
       </el-row>
@@ -158,6 +168,8 @@
               ref="lightChartRef" 
               :time-range="tempTimeRange"
               :device-vid="selectedDevice" 
+              @click="handleChartClick('light')"
+              class="chart-item"
             />
           </el-card>
         </el-col>
@@ -182,11 +194,64 @@
               ref="alarmChartRef" 
               :data="alarmChartData"
               :date-range="alarmDateRange" 
+              @click="handleChartClick('alarm')"
+              class="chart-item"
             />
           </el-card>
         </el-col>
       </el-row>
     </div>
+    
+    <!-- 放大图表弹窗 -->
+    <el-dialog 
+      v-model="showZoomedChart" 
+      :title="zoomedChartTitle" 
+      width="98%"
+      top="1vh"
+      :show-close="true"
+      custom-class="chart-dialog"
+      @close="closeZoomedChart"
+    >
+      <template #header>
+        <div class="dialog-header">
+          <span>{{ zoomedChartTitle }}</span>
+          <el-button 
+            type="danger" 
+            size="small" 
+            @click="closeZoomedChart"
+            class="close-btn"
+          >
+            <el-icon><Close /></el-icon>
+            关闭
+          </el-button>
+        </div>
+      </template>
+      
+      <div class="zoomed-chart-container">
+        <TemperatureChart 
+          v-if="zoomedChart === 'temperature'"
+          :time-range="tempTimeRange"
+          class="zoomed-chart"
+        />
+        <DevicePieChart 
+          v-if="zoomedChart === 'device'"
+          :data="statistics.deviceStatusDistribution"
+          class="zoomed-chart"
+        />
+        <LightChart 
+          v-if="zoomedChart === 'light'"
+          :time-range="tempTimeRange"
+          :device-vid="selectedDevice"
+          class="zoomed-chart"
+        />
+        <AlarmBarChart 
+          v-if="zoomedChart === 'alarm'"
+          :data="alarmChartData"
+          :date-range="alarmDateRange"
+          class="zoomed-chart"
+        />
+      </div>
+    </el-dialog>
     
     <!-- 底部设备列表 -->
     <div class="device-table">
@@ -222,6 +287,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
 import { getDashboardStatistics } from '@/api/dashboard'
 import { getDeviceList } from '@/api/device'
 import { getAlarmStatistics } from '@/api/alarm'
@@ -269,6 +335,11 @@ const alarmDateRange = ref<[Date, Date]>()
 
 // 报警统计图表数据
 const alarmChartData = ref<{ type: string; count: number; level: 'low' | 'medium' | 'high' | 'critical' }[]>([])
+
+// 图表放大功能
+const zoomedChart = ref<string>('')
+const zoomedChartTitle = ref<string>('')
+const showZoomedChart = ref<boolean>(false)
 
 // 计算属性
 const onlinePercentage = computed(() => {
@@ -413,6 +484,27 @@ const handleControlDevice = (device: DeviceInfo) => {
 // 处理报警日期变化
 const handleAlarmDateChange = () => {
   fetchStatistics()
+}
+
+// 处理图表点击放大
+const handleChartClick = (chartType: string) => {
+  const chartTitles = {
+    temperature: '温度监控图表',
+    device: '设备状态分布',
+    light: '光照强度监控',
+    alarm: '报警类型统计'
+  }
+  
+  zoomedChart.value = chartType
+  zoomedChartTitle.value = chartTitles[chartType as keyof typeof chartTitles]
+  showZoomedChart.value = true
+}
+
+// 关闭放大图表
+const closeZoomedChart = () => {
+  zoomedChart.value = ''
+  zoomedChartTitle.value = ''
+  showZoomedChart.value = false
 }
 
 // 处理导出
@@ -639,6 +731,76 @@ onUnmounted(() => {
       gap: 8px;
     }
   }
+}
+
+// 图表点击放大样式
+.chart-item {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.chart-dialog {
+    .el-dialog {
+      max-width: 98vw !important;
+      max-height: 98vh !important;
+      margin: 1vh auto !important;
+    }
+    
+    .el-dialog__header {
+      padding: 0;
+      margin: 0;
+    }
+    
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--el-border-color-light);
+      position: relative;
+      
+      span {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-color-primary);
+      }
+      
+      .close-btn {
+        position: absolute;
+        right: 20px;
+        top: 12px;
+        z-index: 1000;
+        margin: 0;
+        background: #f56c6c;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+    }
+  
+  .el-dialog__body {
+      padding: 0 !important;
+      max-height: calc(98vh - 80px) !important;
+    }
+    
+    .zoomed-chart-container {
+      height: calc(98vh - 80px);
+      padding: 5px;
+      overflow: auto;
+      
+      .zoomed-chart {
+        height: 100%;
+        width: 100%;
+        min-height: 700px;
+      }
+    }
 }
 
 // 响应式调整
