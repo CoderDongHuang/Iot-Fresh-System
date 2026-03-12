@@ -332,9 +332,25 @@ onMounted(() => {
   padding: 20px;
 }
 
+/* 修复页面头部样式 */
+:deep(.el-page-header) {
+  color: #ffffff !important;
+}
+
+:deep(.el-page-header__title) {
+  color: #ffffff !important;
+  font-weight: 500;
+}
+
+:deep(.el-page-header__content) {
+  color: #ffffff !important;
+}
+
 .page-title {
   font-size: 18px;
   font-weight: bold;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .detail-card {
