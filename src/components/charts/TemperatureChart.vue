@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { getTemperatureHistory } from '@/api/data'
@@ -397,7 +397,14 @@ const handleResize = () => {
   }
 }
 
+// 暴露resize方法给父组件
+const resize = () => {
+  handleResize()
+}
+
 onMounted(async () => {
+  // 使用nextTick确保DOM完全渲染后再初始化图表
+  await nextTick()
   initChart()
   await fetchData()
   

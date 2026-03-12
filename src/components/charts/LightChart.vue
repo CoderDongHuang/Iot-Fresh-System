@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { getLightHistory } from '@/api/data'
@@ -307,7 +307,14 @@ const handleResize = () => {
   }
 }
 
+// 暴露resize方法给父组件
+const resize = () => {
+  handleResize()
+}
+
 onMounted(async () => {
+  // 使用nextTick确保DOM完全渲染后再初始化图表
+  await nextTick()
   initChart()
   await fetchData()
   
@@ -352,7 +359,8 @@ defineExpose({
 <style scoped>
 .chart-container {
   width: 100%;
-  height: 400px;
+  height: 100%;
+  min-height: 250px;
   background: rgba(15, 30, 55, 0.4);
   border-radius: 8px;
   backdrop-filter: blur(5px);

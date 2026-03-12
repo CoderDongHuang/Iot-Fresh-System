@@ -215,15 +215,13 @@
       <template #header>
         <div class="dialog-header">
           <span>{{ zoomedChartTitle }}</span>
-          <el-button 
-            type="danger" 
-            size="small" 
+          <button 
             @click="closeZoomedChart"
-            class="close-btn"
+            class="browser-close-btn"
+            title="关闭"
           >
             <el-icon><Close /></el-icon>
-            关闭
-          </el-button>
+          </button>
         </div>
       </template>
       
@@ -498,6 +496,21 @@ const handleChartClick = (chartType: string) => {
   zoomedChart.value = chartType
   zoomedChartTitle.value = chartTitles[chartType as keyof typeof chartTitles]
   showZoomedChart.value = true
+  
+  // 延迟触发图表resize，确保弹窗完全打开
+  setTimeout(() => {
+    const chartRefs = {
+      temperature: tempChartRef,
+      device: deviceChartRef,
+      light: lightChartRef,
+      alarm: alarmChartRef
+    }
+    
+    const currentChartRef = chartRefs[chartType as keyof typeof chartRefs]
+    if (currentChartRef?.value && typeof currentChartRef.value.resize === 'function') {
+      currentChartRef.value.resize()
+    }
+  }, 300)
 }
 
 // 关闭放大图表
@@ -746,9 +759,9 @@ onUnmounted(() => {
 
 .chart-dialog {
     .el-dialog {
-      max-width: 98vw !important;
-      max-height: 98vh !important;
-      margin: 1vh auto !important;
+      max-width: 90vw !important;
+      max-height: 85vh !important;
+      margin: 5vh auto !important;
     }
     
     .el-dialog__header {
@@ -770,35 +783,60 @@ onUnmounted(() => {
         color: var(--text-color-primary);
       }
       
-      .close-btn {
+      .browser-close-btn {
         position: absolute;
-        right: 20px;
-        top: 12px;
+        right: 15px;
+        top: 15px;
         z-index: 1000;
         margin: 0;
-        background: #f56c6c;
+        background: transparent;
         border: none;
-        border-radius: 4px;
-        padding: 6px 12px;
-        font-size: 12px;
-        font-weight: 500;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background: #f56c6c;
+          
+          .el-icon {
+            color: white;
+          }
+        }
+        
+        .el-icon {
+          font-size: 16px;
+          color: #999;
+          transition: color 0.2s ease;
+        }
       }
     }
   
   .el-dialog__body {
       padding: 0 !important;
-      max-height: calc(98vh - 80px) !important;
+      max-height: calc(85vh - 60px) !important;
     }
     
     .zoomed-chart-container {
-      height: calc(98vh - 80px);
+      height: calc(85vh - 60px);
       padding: 5px;
       overflow: auto;
       
       .zoomed-chart {
-        height: 100%;
-        width: 100%;
-        min-height: 700px;
+        height: 100% !important;
+        width: 100% !important;
+        min-height: 500px !important;
+      }
+      
+      /* 确保温度和光照图表在放大状态下使用正确的样式 */
+      .zoomed-chart .chart-container {
+        height: 100% !important;
+        width: 100% !important;
+        min-height: 500px !important;
       }
     }
 }
