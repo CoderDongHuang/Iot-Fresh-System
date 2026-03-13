@@ -29,7 +29,7 @@
       <el-descriptions :column="2" :border="true">
         <el-descriptions-item label="设备名称">{{ deviceInfo.deviceName }}</el-descriptions-item>
         <el-descriptions-item label="设备VID">{{ deviceInfo.vid }}</el-descriptions-item>
-        <el-descriptions-item label="设备类型">{{ deviceInfo.deviceType }}</el-descriptions-item>
+        <el-descriptions-item label="设备类型">{{ getDeviceTypeName(deviceInfo.deviceType) }}</el-descriptions-item>
         <el-descriptions-item label="位置">{{ deviceInfo.location }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusTagType(deviceInfo.status)" size="small">
@@ -284,6 +284,28 @@ const refreshDetail = () => {
 // 控制设备
 const controlDevice = () => {
   router.push(`/control?device=${deviceInfo.value.vid}`)
+}
+
+// 设备类型映射
+const deviceTypeMap: Record<string, string> = {
+  'storage': '存储设备',
+  'transport': '运输设备',
+  'display': '展示设备',
+  'processing': '加工设备',
+  'quality': '质检设备',
+  'monitoring': '监控设备',
+  'warehouse': '仓储设备',
+  'temperature': '温控设备',
+  'humidity': '湿度设备',
+  'light': '光照设备',
+  'control': '控制设备',
+  'other': '其他设备'
+}
+
+// 获取设备类型中文名称
+const getDeviceTypeName = (type: string | undefined) => {
+  if (!type) return '未知'
+  return deviceTypeMap[type.toLowerCase()] || type
 }
 
 // 状态相关函数

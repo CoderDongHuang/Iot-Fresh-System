@@ -1,38 +1,37 @@
 <template>
   <div class="device-status-table">
     <el-table
-      :data="tableData"
-      :stripe="true"
-      :border="true"
-      :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
-      style="width: 100%"
-      @row-click="handleRowClick"
-    >
-      <el-table-column prop="vid" label="设备ID" width="180" />
-      <el-table-column prop="deviceName" label="设备名称" width="150" />
-      <el-table-column prop="deviceType" label="设备类型" width="120">
-        <template #default="{ row }">
-          <el-tag :type="getDeviceTypeTagType(row.deviceType)">
+        :data="tableData"
+        :stripe="true"
+        :border="true"
+        :header-cell-style="{ background: '#f5f7fa', color: '#606266', textAlign: 'center' }"
+        :cell-style="{ textAlign: 'center' }"
+        style="width: 100%"
+        @row-click="handleRowClick"
+      >
+      <el-table-column prop="vid" label="设备ID" width="180" align="center" />
+      <el-table-column prop="deviceName" label="设备名称" width="150" align="center" />
+      <el-table-column prop="deviceType" label="设备类型" min-width="100" align="center">
+          <template #default="{ row }">
             {{ getDeviceTypeName(row.deviceType) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+          </template>
+        </el-table-column>
+      <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="getStatusTagType(row.status)">
             {{ getStatusText(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="location" label="位置" width="150" />
-      <el-table-column prop="contactPhone" label="联系电话" width="130" />
-      <el-table-column prop="lastHeartbeat" label="最后心跳" width="180">
+      <el-table-column prop="location" label="位置" width="150" align="center" />
+      <el-table-column prop="contactPhone" label="联系电话" width="130" align="center" />
+      <el-table-column prop="lastHeartbeat" label="最后心跳" width="180" align="center">
         <template #default="{ row }">
           {{ formatTime(row.lastHeartbeat) }}
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="描述" />
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column prop="description" label="描述" align="center" />
+      <el-table-column label="操作" width="150" fixed="right" align="center">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click.stop="handleViewDetail(row)">
             查看
@@ -97,31 +96,27 @@ const handleControl = (row: DeviceInfo) => {
   emit('control-device', row)
 }
 
-// 获取设备类型标签类型
-const getDeviceTypeTagType = (type: string | undefined) => {
-  if (!type) return 'info'
-  const typeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'primary'> = {
-    'temperature': 'warning',
-    'humidity': 'primary',
-    'light': 'success',
-    'control': 'danger',
-    'monitor': 'info'
-  }
-  return typeMap[type.toLowerCase()] || 'info'
-}
-
-// 获取设备类型名称
-const getDeviceTypeName = (type: string | undefined) => {
-  if (!type) return '未知'
-  const typeMap: Record<string, string> = {
-    'temperature': '温控设备',
-    'humidity': '湿度设备',
-    'light': '光照设备',
-    'control': '控制设备',
-    'monitor': '监控设备'
-  }
-  return typeMap[type.toLowerCase()] || type
-}
+// 设备类型映射
+ const deviceTypeMap: Record<string, string> = {
+   'storage': '存储设备',
+   'transport': '运输设备',
+   'display': '展示设备',
+   'processing': '加工设备',
+   'quality': '质检设备',
+   'monitoring': '监控设备',
+   'warehouse': '仓储设备',
+   'temperature': '温控设备',
+   'humidity': '湿度设备',
+   'light': '光照设备',
+   'control': '控制设备',
+   'other': '其他设备'
+ }
+ 
+ // 获取设备类型名称
+ const getDeviceTypeName = (type: string | undefined) => {
+   if (!type) return '未知'
+   return deviceTypeMap[type.toLowerCase()] || type
+ }
 
 // 获取状态标签类型
 const getStatusTagType = (status: number | undefined) => {

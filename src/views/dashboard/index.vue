@@ -154,7 +154,7 @@
             <template #header>
               <div class="chart-header">
                 <span>光照强度监控</span>
-                <el-select v-model="selectedDevice" size="small" placeholder="选择设备">
+                <el-select v-model="selectedDevice" size="small" placeholder="选择设备" style="width: 150px;">
                   <el-option
                     v-for="device in deviceList"
                     :key="device.vid"
@@ -212,18 +212,6 @@
       custom-class="chart-dialog"
       @close="closeZoomedChart"
     >
-      <template #header>
-        <div class="dialog-header">
-          <span>{{ zoomedChartTitle }}</span>
-          <button 
-            @click="closeZoomedChart"
-            class="browser-close-btn"
-            title="关闭"
-          >
-            <el-icon><Close /></el-icon>
-          </button>
-        </div>
-      </template>
       
       <div class="zoomed-chart-container">
         <TemperatureChart 
@@ -276,6 +264,19 @@
           @view-detail="handleViewDetail"
           @control-device="handleControlDevice"
         />
+        
+        <!-- 分页组件 -->
+        <div class="pagination-container" style="margin-top: 20px; text-align: center;">
+          <el-pagination
+            v-model:current-page="deviceCurrentPage"
+            v-model:page-size="devicePageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="deviceTotal"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleDeviceSizeChange"
+            @current-change="handleDeviceCurrentChange"
+          />
+        </div>
       </el-card>
     </div>
   </div>
@@ -330,6 +331,11 @@ const tempTimeRange = ref('1h')
 const selectedDevice = ref('')
 const deviceList = ref<DeviceInfo[]>([])
 const alarmDateRange = ref<[Date, Date]>()
+
+// 设备列表分页相关
+const deviceCurrentPage = ref(1)
+const devicePageSize = ref(10)
+const deviceTotal = ref(0)
 
 // 报警统计图表数据
 const alarmChartData = ref<{ type: string; count: number; level: 'low' | 'medium' | 'high' | 'critical' }[]>([])
@@ -421,13 +427,79 @@ const validateAlarmLevel = (level: string): 'low' | 'medium' | 'high' | 'critica
   return 'medium'
 }
 
+// 设备类型映射
+const deviceTypeMap: Record<string, string> = {
+  'storage': '存储设备',
+  'transport': '运输设备',
+  'display': '展示设备',
+  'processing': '加工设备',
+  'quality': '质检设备',
+  'monitoring': '监控设备',
+  'warehouse': '仓储设备',
+  'temperature': '温控设备',
+  'humidity': '湿度设备',
+  'light': '光照设备',
+  'control': '控制设备',
+  'other': '其他设备'
+}
+
+// 获取设备类型中文名称
+const getDeviceTypeName = (type: string | undefined) => {
+  if (!type) return '未知'
+  return deviceTypeMap[type.toLowerCase()] || type
+}
+
 // 获取设备列表
 const fetchDeviceList = async () => {
   try {
-    const data = await getDeviceList({ pageNum: 1, pageSize: 10 })
-    deviceList.value = data.list
-    if (deviceList.value.length > 0 && !selectedDevice.value) {
-      selectedDevice.value = deviceList.value[0].vid
+    const params = {
+      pageNum: deviceCurrentPage.value,
+      pageSize: devicePageSize.value
+    }
+    
+    const response: any = await getDeviceList(params)
+    
+    // 检查响应格式并提取数据
+    let resultData = null
+    if (response && response.data) {
+      // 标准格式: { code: 200, msg: 'success', data: { list: [], total: 100 } }
+      resultData = response.data
+    } else if (response && response.list) {
+      // 直接格式: { list: [], total: 100 }
+      resultData = response
+    }
+    
+    if (resultData && resultData.list) {
+      // 数据标准化：适配数据库字段名和设备类型映射
+      const normalizedList = resultData.list.map((device: any) => ({
+        ...device,
+        // 使用数据库字段名
+        vid: device.vid,
+        deviceName: device.device_name || device.deviceName,
+        deviceType: device.device_type || device.deviceType,
+        deviceTypeName: getDeviceTypeName(device.device_type || device.deviceType),
+        status: device.status,
+        location: device.location,
+        description: device.description,
+        manufacturer: device.manufacturer,
+        model: device.model,
+        firmwareVersion: device.firmware_version || device.firmwareVersion,
+        ipAddress: device.ip_address || device.ipAddress,
+        macAddress: device.mac_address || device.macAddress,
+        lastOnlineTime: device.last_online_time || device.lastOnlineTime,
+        createdAt: device.created_at || device.createTime
+      }))
+      
+      deviceList.value = normalizedList
+      deviceTotal.value = resultData.total || resultData.list.length
+      
+      if (deviceList.value.length > 0 && !selectedDevice.value) {
+        selectedDevice.value = deviceList.value[0].vid
+      }
+    } else {
+      console.warn('设备列表数据格式不正确:', response)
+      deviceList.value = []
+      deviceTotal.value = 0
     }
   } catch (error) {
     console.error('获取设备列表失败:', error)
@@ -458,8 +530,21 @@ const refreshChart = (type: string) => {
   }
 }
 
+// 设备列表分页处理
+const handleDeviceSizeChange = (size: number) => {
+  devicePageSize.value = size
+  deviceCurrentPage.value = 1
+  fetchDeviceList()
+}
+
+const handleDeviceCurrentChange = (page: number) => {
+  deviceCurrentPage.value = page
+  fetchDeviceList()
+}
+
 // 刷新设备列表
 const refreshDeviceList = () => {
+  deviceCurrentPage.value = 1
   fetchStatistics()
   fetchDeviceList()
 }

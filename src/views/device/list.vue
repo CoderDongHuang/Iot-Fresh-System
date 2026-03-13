@@ -66,7 +66,7 @@
         <el-table-column prop="location" label="位置" min-width="120" />
         <el-table-column prop="deviceType" label="设备类型" min-width="100">
           <template #default="{ row }">
-            {{ deviceTypeMap[row.deviceType] || row.deviceType }}
+            {{ getDeviceTypeName(row.deviceType) }}
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" min-width="100">
@@ -151,10 +151,17 @@
         
         <el-form-item label="设备类型" prop="deviceType">
           <el-select v-model="addForm.deviceType" placeholder="请选择设备类型" style="width: 100%">
-            <el-option label="冷库设备" value="cold_storage" />
-            <el-option label="温控设备" value="temperature_control" />
-            <el-option label="湿度设备" value="humidity_control" />
-            <el-option label="监控设备" value="monitor" />
+            <el-option label="存储设备" value="storage" />
+            <el-option label="运输设备" value="transport" />
+            <el-option label="展示设备" value="display" />
+            <el-option label="加工设备" value="processing" />
+            <el-option label="质检设备" value="quality" />
+            <el-option label="监控设备" value="monitoring" />
+            <el-option label="仓储设备" value="warehouse" />
+            <el-option label="温控设备" value="temperature" />
+            <el-option label="湿度设备" value="humidity" />
+            <el-option label="光照设备" value="light" />
+            <el-option label="控制设备" value="control" />
             <el-option label="其他设备" value="other" />
           </el-select>
         </el-form-item>
@@ -168,10 +175,79 @@
           />
         </el-form-item>
         
+        <el-form-item label="制造商" prop="manufacturer">
+          <el-select v-model="addForm.manufacturer" placeholder="请选择设备制造商" style="width: 100%">
+            <el-option label="海康威视" value="海康威视" />
+            <el-option label="大华股份" value="大华股份" />
+            <el-option label="华为技术" value="华为技术" />
+            <el-option label="中兴通讯" value="中兴通讯" />
+            <el-option label="小米科技" value="小米科技" />
+            <el-option label="海尔集团" value="海尔集团" />
+            <el-option label="格力电器" value="格力电器" />
+            <el-option label="美的集团" value="美的集团" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="设备型号" prop="model">
+          <el-select v-model="addForm.model" placeholder="请选择设备型号" style="width: 100%">
+            <el-option label="DS-2CD3T45D-I5" value="DS-2CD3T45D-I5" />
+            <el-option label="DH-IPC-HFW5849T1-ASE" value="DH-IPC-HFW5849T1-ASE" />
+            <el-option label="Huawei IVS3800" value="Huawei IVS3800" />
+            <el-option label="ZTE ZXV10" value="ZTE ZXV10" />
+            <el-option label="Xiaomi Mijia Camera" value="Xiaomi Mijia Camera" />
+            <el-option label="Haier HSC-2T" value="Haier HSC-2T" />
+            <el-option label="Gree GRS-100" value="Gree GRS-100" />
+            <el-option label="Midea MDV-200" value="Midea MDV-200" />
+            <el-option label="其他型号" value="其他型号" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="固件版本" prop="firmwareVersion">
+          <el-select v-model="addForm.firmwareVersion" placeholder="请选择固件版本" style="width: 100%">
+            <el-option label="V1.0.0" value="V1.0.0" />
+            <el-option label="V1.2.0" value="V1.2.0" />
+            <el-option label="V2.0.0" value="V2.0.0" />
+            <el-option label="V2.1.0" value="V2.1.0" />
+            <el-option label="V3.0.0" value="V3.0.0" />
+            <el-option label="V3.5.0" value="V3.5.0" />
+            <el-option label="V4.0.0" value="V4.0.0" />
+            <el-option label="最新版本" value="最新版本" />
+            <el-option label="自定义版本" value="自定义版本" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="IP地址" prop="ipAddress">
+          <el-input 
+            v-model="addForm.ipAddress" 
+            placeholder="请输入设备IP地址"
+            maxlength="45"
+            show-word-limit
+          />
+        </el-form-item>
+        
+        <el-form-item label="MAC地址" prop="macAddress">
+          <el-input 
+            v-model="addForm.macAddress" 
+            placeholder="请输入设备MAC地址"
+            maxlength="17"
+            show-word-limit
+          />
+        </el-form-item>
+        
+        <el-form-item label="联系电话" prop="contactPhone">
+          <el-input 
+            v-model="addForm.contactPhone" 
+            placeholder="请输入联系电话"
+            maxlength="20"
+            show-word-limit
+          />
+        </el-form-item>
+        
         <el-form-item label="设备状态" prop="status">
           <el-radio-group v-model="addForm.status">
-            <el-radio label="online">在线</el-radio>
-            <el-radio label="offline">离线</el-radio>
+            <el-radio value="online">在线</el-radio>
+            <el-radio value="offline">离线</el-radio>
           </el-radio-group>
         </el-form-item>
         
@@ -229,6 +305,12 @@ const addForm = reactive({
   vid: '',
   deviceType: '',
   location: '',
+  manufacturer: '',
+  model: '',
+  firmwareVersion: '',
+  ipAddress: '',
+  macAddress: '',
+  contactPhone: '',
   status: 'online',
   description: ''
 })
@@ -250,6 +332,39 @@ const addFormRules = {
     { required: true, message: '请输入安装位置', trigger: 'blur' },
     { min: 2, max: 100, message: '安装位置长度在 2 到 100 个字符', trigger: 'blur' }
   ],
+  manufacturer: [
+    { required: true, message: '请选择设备制造商', trigger: 'change' }
+  ],
+  model: [
+    { required: true, message: '请选择设备型号', trigger: 'change' }
+  ],
+  firmwareVersion: [
+    { required: true, message: '请选择固件版本', trigger: 'change' }
+  ],
+  ipAddress: [
+    { required: true, message: '请输入IP地址', trigger: 'blur' },
+    { 
+      pattern: /^(\d{1,3}\.){3}\d{1,3}$/, 
+      message: '请输入有效的IP地址格式', 
+      trigger: 'blur' 
+    }
+  ],
+  macAddress: [
+    { required: true, message: '请输入MAC地址', trigger: 'blur' },
+    { 
+      pattern: /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/, 
+      message: '请输入有效的MAC地址格式', 
+      trigger: 'blur' 
+    }
+  ],
+  contactPhone: [
+    { required: true, message: '请输入联系电话', trigger: 'blur' },
+    { 
+      pattern: /^1[3-9]\d{9}$|^\d{3,4}-\d{7,8}$/, 
+      message: '请输入有效的手机号或座机号格式', 
+      trigger: 'blur' 
+    }
+  ],
   status: [
     { required: true, message: '请选择设备状态', trigger: 'change' }
   ]
@@ -263,8 +378,19 @@ const deviceTypeMap: Record<string, string> = {
   'processing': '加工设备',
   'quality': '质检设备',
   'monitoring': '监控设备',
-  'warehouse': '仓储设备'
+  'warehouse': '仓储设备',
+  'temperature': '温控设备',
+  'humidity': '湿度设备',
+  'light': '光照设备',
+  'control': '控制设备',
+  'other': '其他设备'
 }
+
+// 获取设备类型中文名称
+ const getDeviceTypeName = (type: string | undefined) => {
+   if (!type) return '未知'
+   return deviceTypeMap[type.toLowerCase()] || type
+ }
 
 // 设备状态映射
 const deviceStatusMap: Record<number, { label: string, type: string }> = {
@@ -452,6 +578,12 @@ const showAddDialog = () => {
     vid: '',
     deviceType: '',
     location: '',
+    manufacturer: '',
+    model: '',
+    firmwareVersion: '',
+    ipAddress: '',
+    macAddress: '',
+    contactPhone: '',
     status: 'online',
     description: ''
   })
@@ -476,21 +608,92 @@ const handleAddDevice = async () => {
   }
   
   addLoading.value = true
+  
+  // 同时发送前端和后端字段名，确保后端能正确接收
+  const requestData = {
+    // 后端字段名（下划线命名法）
+    device_name: addForm.deviceName,
+    vid: addForm.vid,
+    device_type: addForm.deviceType,
+    location: addForm.location,
+    manufacturer: addForm.manufacturer,
+    model: addForm.model,
+    firmware_version: addForm.firmwareVersion,
+    ip_address: addForm.ipAddress,
+    mac_address: addForm.macAddress,
+    contact_phone: addForm.contactPhone,
+    status: addForm.status === 'online' ? 1 : 0, // 转换为数字状态
+    description: addForm.description,
+    last_online_time: new Date().toISOString().slice(0, 19).replace('T', ' '), // 当前时间
+    last_heartbeat: new Date().toISOString().slice(0, 19).replace('T', ' '), // 当前时间
+    
+    // 前端字段名（驼峰命名法）- 兼容后端可能验证前端字段名
+    deviceName: addForm.deviceName,
+    deviceType: addForm.deviceType,
+    firmwareVersion: addForm.firmwareVersion,
+    ipAddress: addForm.ipAddress,
+    macAddress: addForm.macAddress,
+    contactPhone: addForm.contactPhone
+  }
+  
   try {
     // 调用新增设备API
-    const result = await addDevice(addForm)
+    const result = await addDevice(requestData)
     
-    if (result.success) {
-      ElMessage.success('设备新增成功')
+    console.log('新增设备API响应:', result)
+    
+    // 兼容多种响应格式
+    let success = false
+    let message = ''
+    
+    // 情况1: 标准格式 {code: 200, success: true, message: '操作成功'}
+    if (result && result.code === 200) {
+      success = true
+      message = result.message || result.msg || '设备新增成功'
+    }
+    // 情况2: 简单格式 {success: true, message: '操作成功'}
+    else if (result && result.success === true) {
+      success = true
+      message = result.message || result.msg || '设备新增成功'
+    }
+    // 情况3: 直接返回数据对象（没有包装）
+    else if (result && typeof result === 'object' && !result.code && !result.success) {
+      success = true
+      message = '设备新增成功'
+    }
+    // 情况4: 后端可能返回空响应或简单字符串
+    else if (result === undefined || result === null || result === '') {
+      success = true
+      message = '设备新增成功'
+    }
+    
+    if (success) {
+      ElMessage.success(message)
       addDialogVisible.value = false
       // 刷新设备列表
       fetchDeviceList()
     } else {
-      ElMessage.error(`设备新增失败: ${result.message}`)
+      ElMessage.error(`设备新增失败: ${result?.message || result?.msg || '未知错误'}`)
     }
   } catch (error: any) {
     console.error('新增设备失败:', error)
-    ElMessage.error(`新增设备失败: ${error.message || '未知错误'}`)
+    console.log('前端表单数据:', addForm)
+    console.log('实际请求数据:', requestData)
+    
+    // 显示更详细的错误信息
+    let errorMessage = '未知错误'
+    if (error.response) {
+      // 服务器返回了错误响应
+      errorMessage = `服务器错误: ${error.response.status} - ${error.response.data?.message || '请检查后端服务'}`
+    } else if (error.request) {
+      // 请求已发送但没有收到响应
+      errorMessage = '网络错误: 无法连接到服务器，请检查后端服务是否启动'
+    } else {
+      // 其他错误
+      errorMessage = error.message || '未知错误'
+    }
+    
+    ElMessage.error(`新增设备失败: ${errorMessage}`)
   } finally {
     addLoading.value = false
   }
