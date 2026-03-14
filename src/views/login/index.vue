@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <img src="@/assets/images/logo.png" class="logo" alt="logo">
+        <img src="/iot-logo.svg" class="logo" alt="logo">
         <h1>{{ appTitle }}</h1>
         <p>基于物联网的生鲜品储运系统</p>
       </div>
@@ -47,10 +47,12 @@
         </el-form-item>
         
         <el-form-item>
-          <el-checkbox v-model="rememberMe">记住密码</el-checkbox>
-          <el-link type="primary" underline="never" @click="showForget = true">
-            忘记密码?
-          </el-link>
+          <div class="form-options">
+            <el-checkbox v-model="rememberMe">记住密码</el-checkbox>
+            <el-link type="primary" underline="never" @click="showForget = true">
+              忘记密码?
+            </el-link>
+          </div>
         </el-form-item>
         
         <el-form-item>
@@ -358,6 +360,13 @@ onUnmounted(() => {
       cursor: pointer;
       border-radius: 4px;
     }
+  }
+  
+  .form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
   }
   
   .login-btn {

@@ -1,18 +1,22 @@
 <template>
   <el-header class="navbar">
     <div class="navbar-left">
-      <img src="/vite.svg" class="logo" alt="logo" />
+      <img src="/iot-logo.svg" class="logo" alt="logo" />
       <span class="title">物联网生鲜品储运系统</span>
     </div>
     <div class="navbar-right">
-      <el-dropdown>
+      <el-dropdown @command="handleUserCommand">
         <span class="el-dropdown-link">
-          <el-icon><User /></el-icon> 用户 <el-icon><ArrowDown /></el-icon>
+          <el-icon><User /></el-icon> {{ userInfo?.username || '用户' }} <el-icon><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item>个人中心</el-dropdown-item>
-            <el-dropdown-item>退出登录</el-dropdown-item>
+            <el-dropdown-item command="profile">
+              <el-icon><UserFilled /></el-icon> 个人中心
+            </el-dropdown-item>
+            <el-dropdown-item divided command="logout">
+              <el-icon><SwitchButton /></el-icon> 退出登录
+            </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -21,7 +25,54 @@
 </template>
 
 <script setup lang="ts">
-import { User, ArrowDown } from '@element-plus/icons-vue'
+import { User, ArrowDown, UserFilled, SwitchButton } from '@element-plus/icons-vue'
+import { useUserStore } from '@/store/user'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const userStore = useUserStore()
+
+// 获取用户信息
+const userInfo = userStore.getUserInfo
+
+// 处理用户命令
+const handleUserCommand = async (command: string) => {
+  switch (command) {
+    case 'profile':
+      // 跳转到个人中心页面
+      router.push('/settings/profile')
+      break
+    case 'logout':
+      // 退出登录
+      await handleLogout()
+      break
+  }
+}
+
+// 退出登录
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    // 调用退出登录API
+    await userStore.logout()
+    
+    // 跳转到登录页面
+    router.push('/login')
+    ElMessage.success('退出登录成功')
+  } catch (error) {
+    // 用户取消退出
+    if (error !== 'cancel') {
+      console.error('退出登录失败:', error)
+      ElMessage.error('退出登录失败')
+    }
+  }
+}
 </script>
 
 <style scoped>
