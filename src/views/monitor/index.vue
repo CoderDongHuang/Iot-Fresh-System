@@ -234,9 +234,10 @@ const getTempClass = (temp: number) => {
 // 获取状态标签类型
 const getStatusTagType = (status: number) => {
   switch (status) {
-    case 0: return 'success' // 正常
-    case 1: return 'info'    // 离线
-    case 2: return 'warning' // 异常
+    case 1: return 'success' // 在线 - 绿色
+    case 0: return 'info'    // 离线 - 灰色
+    case 2: return 'danger'  // 故障 - 红色
+    case 3: return 'warning' // 维护 - 橙色
     default: return 'info'
   }
 }
@@ -244,9 +245,10 @@ const getStatusTagType = (status: number) => {
 // 获取状态文本
 const getStatusText = (status: number) => {
   switch (status) {
-    case 0: return '正常'
-    case 1: return '离线'
-    case 2: return '异常'
+    case 1: return '在线'
+    case 0: return '离线'
+    case 2: return '故障'
+    case 3: return '维护'
     default: return '未知'
   }
 }

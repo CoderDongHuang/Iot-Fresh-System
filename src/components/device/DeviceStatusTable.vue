@@ -121,11 +121,12 @@ const handleControl = (row: DeviceInfo) => {
 // 获取状态标签类型
 const getStatusTagType = (status: number | undefined) => {
   if (status === undefined) return 'info'
-  // 假设 1 为在线，0 为离线，2 为故障
+  // 统一状态映射：1:在线(绿色), 0:离线(灰色), 2:故障(红色), 3:维护(橙色)
   const statusMap: Record<number, 'success' | 'warning' | 'danger' | 'info' | 'primary'> = {
-    0: 'info', // 离线
-    1: 'success', // 在线
-    2: 'danger' // 故障
+    1: 'success', // 在线 - 绿色
+    0: 'info', // 离线 - 灰色
+    2: 'danger', // 故障 - 红色
+    3: 'warning' // 维护 - 橙色
   }
   return statusMap[status] || 'info'
 }
@@ -134,9 +135,10 @@ const getStatusTagType = (status: number | undefined) => {
 const getStatusText = (status: number | undefined) => {
   if (status === undefined) return '未知'
   const statusMap: Record<number, string> = {
-    0: '离线',
     1: '在线',
-    2: '故障'
+    0: '离线',
+    2: '故障',
+    3: '维护'
   }
   return statusMap[status] || '未知'
 }

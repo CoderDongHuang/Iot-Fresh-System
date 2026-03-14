@@ -394,8 +394,8 @@ const deviceTypeMap: Record<string, string> = {
 
 // 设备状态映射
 const deviceStatusMap: Record<number, { label: string, type: string }> = {
-  0: { label: '离线', type: 'info' },
   1: { label: '在线', type: 'success' },
+  0: { label: '离线', type: 'info' },
   2: { label: '故障', type: 'danger' },
   3: { label: '维护', type: 'warning' }
 }
@@ -504,7 +504,7 @@ const getStatusIcon = (status: string | number) => {
     case 3:
       return 'el-icon-Tools'
     default:
-      return 'el-icon-Question'
+      return 'el-icon-QuestionFilled'
   }
 }
 
@@ -512,13 +512,13 @@ const getStatusColor = (status: string | number) => {
   const statusNum = typeof status === 'string' ? parseInt(status) : status
   switch (statusNum) {
     case 1:
-      return '#67C23A'
+      return '#67C23A' // 在线 - 绿色
     case 0:
-      return '#909399'
+      return '#909399' // 离线 - 灰色
     case 2:
-      return '#F56C6C'
+      return '#F56C6C' // 故障 - 红色
     case 3:
-      return '#E6A23C'
+      return '#E6A23C' // 维护 - 橙色
     default:
       return '#909399'
   }

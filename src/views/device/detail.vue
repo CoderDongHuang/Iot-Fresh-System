@@ -321,6 +321,8 @@ const getStatusTagType = (status: string | number) => {
     case 'fault':
     case '2':
       return 'danger'
+    case '3':
+      return 'warning'
     default:
       return 'info'
   }
@@ -338,6 +340,8 @@ const getStatusText = (status: string | number) => {
     case 'fault':
     case '2':
       return '故障'
+    case '3':
+      return '维护'
     default:
       return '未知'
   }
