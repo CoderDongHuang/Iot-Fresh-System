@@ -34,14 +34,7 @@
             value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
-        <el-form-item label="数据类型">
-          <el-select v-model="searchForm.dataType" placeholder="请选择数据类型" clearable>
-            <el-option label="温度数据" value="temperature" />
-            <el-option label="湿度数据" value="humidity" />
-            <el-option label="光照数据" value="light" />
-            <el-option label="其他数据" value="other" />
-          </el-select>
-        </el-form-item>
+
         <el-form-item>
           <el-button type="primary" @click="handleSearch" :loading="loading">查询</el-button>
           <el-button @click="resetSearch">重置</el-button>
@@ -139,8 +132,7 @@ const deviceTypeMap: Record<string, string> = {
 // 搜索表单
 const searchForm = reactive({
   vid: '',
-  dateRange: [] as string[] | null,
-  dataType: ''
+  dateRange: [] as string[] | null
 })
 
 // 分页数据
@@ -162,7 +154,6 @@ const handleSearch = async () => {
 const resetSearch = () => {
   searchForm.vid = ''
   searchForm.dateRange = null
-  searchForm.dataType = ''
   currentPage.value = 1
   fetchHistoryData()
 }
@@ -200,11 +191,6 @@ const fetchHistoryData = async () => {
       vid: searchForm.vid
     }
     
-    // 只有当选择了数据类型时才添加该参数
-    if (searchForm.dataType && searchForm.dataType.trim() !== '') {
-      params.dataType = searchForm.dataType
-    }
-    
     // 添加时间范围参数
     if (searchForm.dateRange && searchForm.dateRange.length === 2) {
       params.startTime = searchForm.dateRange[0]
@@ -232,14 +218,20 @@ const fetchHistoryData = async () => {
       console.log('resultData.list:', resultData.list)
       
       // 如果list本身是一个对象，尝试提取其中的list字段
+      let rawData = []
       if (typeof resultData.list === 'object' && resultData.list.list) {
         console.log('嵌套list数据:', resultData.list.list)
-        historyData.value = resultData.list.list || []
+        rawData = resultData.list.list || []
         total.value = resultData.list.total || 0
       } else {
-        historyData.value = resultData.list || []
+        rawData = resultData.list || []
         total.value = resultData.total || 0
       }
+      
+      // 对数据进行字段映射
+      historyData.value = rawData.map(mapDataFields)
+      console.log('原始数据:', rawData)
+      console.log('映射后的数据:', historyData.value)
     } else {
       historyData.value = []
       total.value = 0
@@ -257,6 +249,20 @@ const fetchHistoryData = async () => {
     ElMessage.error('查询失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 数据字段映射函数
+const mapDataFields = (data: any) => {
+  // 根据后端实际返回的字段名称进行映射（注意：后端返回的是大写字母开头的字段）
+  return {
+    vid: data.vid || data.deviceId || data.device_id || '',
+    timestamp: data.timestamp || data.update_at || data.time || data.create_time || data.update_time || data.createdAt,
+    tin: data.tin || data.Tin || data.Hin || data.t_in || data.temperature_in || data.temp_internal || 0,
+    tout: data.tout || data.Tout || data.Hout || data.t_out || data.temperature_out || data.temp_external || 0,
+    lxin: data.lxin || data.LXin || data.lx_in || data.light_intensity || data.light || 0,
+    brightness: data.brightness || data.bright || data.light_brightness || 0,
+    vStatus: data.vStatus || data.vstatus || data.v_status || data.status || data.device_status || 0
   }
 }
 

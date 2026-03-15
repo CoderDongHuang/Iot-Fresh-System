@@ -82,47 +82,70 @@
       </el-row>
     </el-card>
     
-    <!-- 历史数据表格 -->
-    <el-card shadow="hover" class="history-table-card">
-      <template #header>
-        <div class="card-header">
-          <span>历史数据记录</span>
-          <div class="chart-controls">
-            <el-radio-group v-model="timeRange" @change="fetchHistoryData">
-              <el-radio-button value="1h">1小时</el-radio-button>
-              <el-radio-button value="6h">6小时</el-radio-button>
-              <el-radio-button value="24h">24小时</el-radio-button>
-              <el-radio-button value="7d">7天</el-radio-button>
-            </el-radio-group>
-          </div>
-        </div>
-      </template>
+    <!-- 历史数据图表和表格 -->
+    <el-row :gutter="20">
+      <!-- 历史数据图表 -->
+      <el-col :span="12">
+        <el-card shadow="hover" class="history-chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>历史数据趋势图</span>
+              <div class="chart-controls">
+                <el-radio-group v-model="timeRange" @change="fetchHistoryData">
+                  <el-radio-button value="1h">1小时</el-radio-button>
+                  <el-radio-button value="6h">6小时</el-radio-button>
+                  <el-radio-button value="24h">24小时</el-radio-button>
+                  <el-radio-button value="7d">7天</el-radio-button>
+                </el-radio-group>
+              </div>
+            </div>
+          </template>
+          
+          <div ref="historyChartRef" style="width: 100%; height: 400px;"></div>
+        </el-card>
+      </el-col>
       
-      <el-table v-loading="loadingHistoryData" :data="historyData" style="width: 100%" stripe>
-        <el-table-column prop="timestamp" label="时间" width="180">
-          <template #default="{ row }">
-            {{ row.timestamp ? formatDate(row.timestamp) : '-' }}
+      <!-- 历史数据表格 -->
+      <el-col :span="12">
+        <el-card shadow="hover" class="history-table-card">
+          <template #header>
+            <div class="card-header">
+              <span>历史数据记录</span>
+              <el-button size="small" @click="toggleTableExpand" :icon="tableExpanded ? 'el-icon-Fold' : 'el-icon-Expand'">
+                {{ tableExpanded ? '收起' : '展开' }}
+              </el-button>
+            </div>
           </template>
-        </el-table-column>
-        <el-table-column prop="tin" label="厢内温度(℃)" width="120" />
-        <el-table-column prop="tout" label="厢外温度(℃)" width="120" />
-        <el-table-column prop="lxin" label="光照强度(lux)" width="130" />
-        <el-table-column prop="vStatus" label="设备状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.vStatus === 0 ? 'success' : 'warning'">
-              {{ row.vStatus === 0 ? '正常' : '异常' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+          
+          <el-table v-loading="loadingHistoryData" :data="historyData" style="width: 100%" stripe 
+                    :max-height="tableExpanded ? 400 : 200">
+            <el-table-column prop="timestamp" label="时间" width="180">
+              <template #default="{ row }">
+                {{ row.timestamp ? formatDate(row.timestamp) : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="tin" label="厢内温度(℃)" width="120" />
+            <el-table-column prop="tout" label="厢外温度(℃)" width="120" />
+            <el-table-column prop="lxin" label="光照强度(lux)" width="130" />
+            <el-table-column prop="vStatus" label="设备状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="getStatusTagType(row.vStatus)" size="small">
+                  {{ getStatusText(row.vStatus) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 import { getDeviceDetail, getDeviceHistoryData } from '@/api/device'
 import type { DeviceInfo } from '@/types/api'
 import { formatDate } from '@/utils/date'
@@ -145,6 +168,9 @@ const deviceInfo = ref<DeviceInfo>({
 const timeRange = ref('1h')
 const historyData = ref<any[]>([])
 const loadingHistoryData = ref(false)
+const tableExpanded = ref(false)
+const historyChartRef = ref<HTMLElement>()
+let historyChart: echarts.ECharts | null = null
 
 // 获取设备详情
 const fetchDeviceDetail = async () => {
@@ -177,6 +203,181 @@ const fetchDeviceDetail = async () => {
   }
 }
 
+// 表格展开/收起切换
+const toggleTableExpand = () => {
+  tableExpanded.value = !tableExpanded.value
+}
+
+// 初始化图表
+const initHistoryChart = () => {
+  if (!historyChartRef.value) return
+  
+  historyChart = echarts.init(historyChartRef.value)
+  
+  // 设置默认图表配置
+   const option = {
+     title: {
+       text: '设备数据趋势图',
+       left: 'center',
+       top: 10,
+       textStyle: {
+         color: '#333',
+         fontSize: 16
+       }
+     },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+    legend: {
+       data: ['箱内温度', '箱外温度', '光照强度'],
+       top: 40
+     },
+    grid: {
+       left: '3%',
+       right: '4%',
+       bottom: '3%',
+       top: '20%',
+       containLabel: true
+     },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: []
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '温度(℃)',
+        position: 'left',
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: '#5470C6'
+          }
+        },
+        axisLabel: {
+          formatter: '{value}℃'
+        }
+      },
+      {
+        type: 'value',
+        name: '光照强度(lux)',
+        position: 'right',
+        axisLine: {
+          show: true,
+          lineStyle: {
+            color: '#91CC75'
+          }
+        },
+        axisLabel: {
+          formatter: '{value} lux'
+        }
+      }
+    ],
+    series: [
+      {
+        name: '箱内温度',
+        type: 'line',
+        yAxisIndex: 0,
+        data: [],
+        itemStyle: {
+          color: '#5470C6'
+        },
+        lineStyle: {
+          width: 2
+        }
+      },
+      {
+        name: '箱外温度',
+        type: 'line',
+        yAxisIndex: 0,
+        data: [],
+        itemStyle: {
+          color: '#EE6666'
+        },
+        lineStyle: {
+          width: 2
+        }
+      },
+      {
+        name: '光照强度',
+        type: 'line',
+        yAxisIndex: 1,
+        data: [],
+        itemStyle: {
+          color: '#91CC75'
+        },
+        lineStyle: {
+          width: 2
+        }
+      }
+    ]
+  }
+  
+  historyChart.setOption(option)
+}
+
+// 数据字段映射函数
+const mapDataFields = (data: any) => {
+  // 根据后端实际返回的字段名称进行映射（注意：后端返回的是大写字母开头的字段）
+  return {
+    timestamp: data.timestamp || data.update_at || data.time || data.create_time || data.update_time || data.createdAt,
+    tin: data.tin || data.Tin || data.Hin || data.t_in || data.temperature_in || data.temp_internal || 0,
+    tout: data.tout || data.Tout || data.Hout || data.t_out || data.temperature_out || data.temp_external || 0,
+    lxin: data.lxin || data.LXin || data.lx_in || data.light_intensity || data.light || 0,
+    vStatus: data.vStatus || data.vstatus || data.v_status || data.status || data.device_status || 0
+  }
+}
+
+// 更新图表数据
+const updateChartData = (data: any[]) => {
+  if (!historyChart) return
+  
+  // 处理数据：按时间排序，最新的在前
+  const mappedData = data.map(mapDataFields)
+  const sortedData = [...mappedData].sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+  
+  const timeData = sortedData.map(item => {
+    const date = new Date(item.timestamp)
+    // 根据时间范围显示不同的时间格式
+    if (timeRange.value === '1h' || timeRange.value === '6h') {
+      return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+    } else if (timeRange.value === '24h') {
+      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:00`
+    } else {
+      return `${date.getMonth() + 1}/${date.getDate()}`
+    }
+  })
+  
+  const tinData = sortedData.map(item => item.tin || 0)
+  const toutData = sortedData.map(item => item.tout || 0)
+  const lxinData = sortedData.map(item => item.lxin || 0)
+  
+  const option = {
+    xAxis: {
+      data: timeData
+    },
+    series: [
+      {
+        data: tinData
+      },
+      {
+        data: toutData
+      },
+      {
+        data: lxinData
+      }
+    ]
+  }
+  
+  historyChart.setOption(option)
+}
+
 // 获取历史数据
 const fetchHistoryData = async () => {
   loadingHistoryData.value = true
@@ -202,21 +403,31 @@ const fetchHistoryData = async () => {
     }
     
     // 检查返回的数据格式并设置到historyData
+    let rawData = []
     if (Array.isArray(responseData)) {
       // 如果直接返回数组
-      historyData.value = responseData
+      rawData = responseData
       console.log('✅ 历史数据加载成功，数组长度:', responseData.length)
     } else if (responseData && responseData.list && Array.isArray(responseData.list)) {
       // 如果返回的是包含list的对象
-      historyData.value = responseData.list
+      rawData = responseData.list
       console.log('✅ 历史数据加载成功，list长度:', responseData.list.length)
     } else {
       // 其他情况，直接赋值（可能为空数组）
-      historyData.value = []
+      rawData = []
       console.log('⚠️ 历史数据格式异常，设置为空数组')
     }
     
-    console.log('📊 最终设置的历史数据:', historyData.value)
+    // 对数据进行字段映射
+    historyData.value = rawData.map(mapDataFields)
+    console.log('📊 原始数据:', rawData)
+    console.log('📊 映射后的历史数据:', historyData.value)
+    
+    // 更新图表数据
+    if (historyData.value.length > 0) {
+      await nextTick()
+      updateChartData(historyData.value)
+    }
     
     // 如果数据量少，自动测试其他时间范围
     if (historyData.value.length <= 1) {
@@ -283,8 +494,26 @@ const refreshDetail = () => {
 
 // 控制设备
 const controlDevice = () => {
-  router.push(`/control?device=${deviceInfo.value.vid}`)
+  if (deviceInfo.value.vid) {
+    router.push(`/control?device=${deviceInfo.value.vid}`)
+  }
 }
+
+// 组件挂载时初始化
+onMounted(async () => {
+  await fetchDeviceDetail()
+  await nextTick()
+  initHistoryChart()
+  await fetchHistoryData()
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (historyChart) {
+    historyChart.dispose()
+    historyChart = null
+  }
+})
 
 // 设备类型映射
 const deviceTypeMap: Record<string, string> = {
@@ -314,15 +543,15 @@ const getStatusTagType = (status: string | number) => {
   switch (statusStr) {
     case 'online':
     case '1':
-      return 'success'
+      return 'success' // 在线 - 绿色
     case 'offline':
     case '0':
-      return 'info'
+      return 'info'    // 离线 - 灰色
     case 'fault':
     case '2':
-      return 'danger'
+      return 'danger'  // 故障 - 红色
     case '3':
-      return 'warning'
+      return 'warning' // 维护 - 橙色
     default:
       return 'info'
   }
@@ -347,10 +576,7 @@ const getStatusText = (status: string | number) => {
   }
 }
 
-// 初始化
-onMounted(() => {
-  fetchDeviceDetail()
-})
+
 </script>
 
 <style scoped>
@@ -433,8 +659,46 @@ onMounted(() => {
   align-items: center;
 }
 
-.chart-card {
+.history-chart-card {
   margin-top: 20px;
+  height: 500px;
+}
+
+.history-table-card {
+  margin-top: 20px;
+}
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 图表容器样式 */
+.history-chart-card .el-card__body {
+  padding: 15px 15px 5px 15px;
+}
+
+/* 表格容器样式 */
+.history-table-card .el-card__body {
+  padding: 10px;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .el-row {
+    flex-direction: column;
+  }
+  
+  .el-col {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .history-chart-card,
+  .history-table-card {
+    margin-top: 10px;
+  }
 }
 
 
