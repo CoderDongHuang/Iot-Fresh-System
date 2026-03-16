@@ -67,8 +67,9 @@ service.interceptors.response.use(
         }
         return Promise.reject(new Error(res.msg || 'Error'))
       } else if (res.code === 200) {
-        // 正常包装格式
-        return res.data
+        // 正常包装格式 - 返回完整响应对象，让业务层处理
+        console.log('HTTP拦截器: 返回完整响应对象')
+        return res
       } else {
         // 没有code字段，直接返回数据
         console.log('HTTP拦截器: 响应没有code字段，直接返回数据')

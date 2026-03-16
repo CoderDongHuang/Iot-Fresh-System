@@ -142,10 +142,27 @@ const fetchRealTimeData = async () => {
     })
     
     const dataPromise = getAllDevicesRealTimeData()
-    const data = await Promise.race([dataPromise, timeoutPromise])
+    const response = await Promise.race([dataPromise, timeoutPromise])
     
-    // 优化数据处理，避免不必要的映射
-    realTimeData.value = Array.isArray(data) ? data : []
+    // 处理响应数据格式 - 使用类型断言处理可能的响应对象
+    let deviceData = []
+    const resp = response as any
+    
+    if (resp && resp.code === 200) {
+      // 标准响应格式：response.data 包含设备数据
+      deviceData = Array.isArray(resp.data) ? resp.data : []
+    } else if (Array.isArray(resp)) {
+      // 直接返回数组格式
+      deviceData = resp
+    } else if (resp && Array.isArray(resp.list)) {
+      // 兼容 list 字段格式
+      deviceData = resp.list
+    } else if (resp && Array.isArray(resp.total)) {
+      // 兼容 total 字段格式
+      deviceData = resp.total
+    }
+    
+    realTimeData.value = deviceData
     
     const endTime = Date.now()
     const duration = endTime - startTime

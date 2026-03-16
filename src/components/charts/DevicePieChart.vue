@@ -64,7 +64,32 @@ const initChart = () => {
         {
           name: '设备状态',
           type: 'pie',
-          radius: '50%',
+          radius: ['15%', '75%'], // 更宽的环形图
+          center: ['50%', '50%'], // 居中显示
+          roseType: 'area', // 使用玫瑰图，按面积显示
+          avoidLabelOverlap: true, // 启用标签重叠避免
+          label: {
+            show: true,
+            position: 'outside', // 标签显示在外部
+            formatter: '{b}: {c} ({d}%)',
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: '#333'
+          },
+          labelLine: {
+            show: true,
+            length: 25,
+            length2: 35,
+            smooth: 0.3,
+            lineStyle: {
+              width: 1.5
+            }
+          },
+          itemStyle: {
+            borderWidth: 3,
+            borderColor: '#fff',
+            borderRadius: 5
+          },
           data: [
             { value: props.data.online, name: '在线', itemStyle: { color: '#67C23A' } },
             { value: props.data.offline, name: '离线', itemStyle: { color: '#909399' } },
@@ -72,10 +97,17 @@ const initChart = () => {
             { value: props.data.maintenance, name: '维护', itemStyle: { color: '#E6A23C' } }
           ],
           emphasis: {
+            scale: true,
+            scaleSize: 1.2,
             itemStyle: {
-              shadowBlur: 10,
+              shadowBlur: 20,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.5)'
+              shadowColor: 'rgba(0, 0, 0, 0.8)'
+            },
+            label: {
+              show: true,
+              fontSize: 14,
+              fontWeight: 'bold'
             }
           }
         }
@@ -103,6 +135,32 @@ const updateChart = () => {
         {
           ...(currentOption.series && currentOption.series[0]),
           type: 'pie',
+          radius: ['15%', '75%'], // 更宽的环形图
+          center: ['50%', '50%'], // 居中显示
+          roseType: 'area', // 使用玫瑰图，按面积显示
+          avoidLabelOverlap: true, // 启用标签重叠避免
+          label: {
+            show: true,
+            position: 'outside', // 标签显示在外部
+            formatter: '{b}: {c} ({d}%)',
+            fontSize: 12,
+            fontWeight: 'bold',
+            color: '#333'
+          },
+          labelLine: {
+            show: true,
+            length: 25,
+            length2: 35,
+            smooth: 0.3,
+            lineStyle: {
+              width: 1.5
+            }
+          },
+          itemStyle: {
+            borderWidth: 3,
+            borderColor: '#fff',
+            borderRadius: 5
+          },
           data: [
             { value: props.data.online, name: '在线', itemStyle: { color: '#67C23A' } },
             { value: props.data.offline, name: '离线', itemStyle: { color: '#909399' } },

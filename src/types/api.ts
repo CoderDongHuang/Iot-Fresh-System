@@ -39,12 +39,13 @@ export interface DeviceInfo {
 export interface DeviceData {
   id?: number
   vid: string
-  tin?: number
-  tout?: number
-  lxin?: number
-  brightness?: number
-  speedM1?: number
-  speedM2?: number
+  tin?: number        // 内部温度
+  tout?: number       // 外部温度
+  hin?: number        // 内部湿度
+  hout?: number       // 外部湿度
+  lxin?: number       // 内部光照
+  lxout?: number      // 外部光照
+  brightness?: number // 亮度
   vStatus?: number
   timestamp?: string
 }

@@ -53,91 +53,199 @@
               <el-tag :type="getStatusTagType(selectedDevice.status)" size="small">
                 {{ getStatusText(selectedDevice.status) }}
               </el-tag>
+              <span class="update-time" v-if="currentData.timestamp">
+                最后更新: {{ formatTime(currentData.timestamp) }}
+              </span>
             </div>
+          </div>
+          
+          <!-- 当前状态数据展示 -->
+          <div class="current-data-display" v-if="currentData.vid">
+            <el-row :gutter="10">
+              <el-col :span="4">
+                <div class="data-item">
+                  <div class="data-label">内部温度</div>
+                  <div class="data-value">{{ currentData.tin !== undefined ? currentData.tin.toFixed(1) : '-' }}℃</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="data-item">
+                  <div class="data-label">外部温度</div>
+                  <div class="data-value">{{ currentData.tout !== undefined ? currentData.tout.toFixed(1) : '-' }}℃</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="data-item">
+                  <div class="data-label">内部湿度</div>
+                  <div class="data-value">{{ currentData.hin !== undefined ? currentData.hin : '-' }}%</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="data-item">
+                  <div class="data-label">外部湿度</div>
+                  <div class="data-value">{{ currentData.hout !== undefined ? currentData.hout : '-' }}%</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="data-item">
+                  <div class="data-label">内部光照</div>
+                  <div class="data-value">{{ currentData.lxin !== undefined ? currentData.lxin : '-' }}lux</div>
+                </div>
+              </el-col>
+              <el-col :span="4">
+                <div class="data-item">
+                  <div class="data-label">外部光照</div>
+                  <div class="data-value">{{ currentData.lxout !== undefined ? currentData.lxout : '-' }}lux</div>
+                </div>
+              </el-col>
+            </el-row>
           </div>
         </div>
       </template>
 
       <el-row :gutter="20">
-        <el-col :span="12">
-          <el-card shadow="never" class="control-section">
+        <!-- 基础控制 -->
+        <el-col :span="6">
+          <el-card shadow="hover" class="control-section">
             <template #header>
               <div class="section-header">
-                <span>基础控制</span>
+                <el-icon><VideoPlay /></el-icon>
+                <span>设备控制</span>
               </div>
             </template>
-
             <div class="control-grid">
-              <el-button type="success" size="large" @click="sendCommand('turnOn')">
-                <el-icon><VideoPlay /></el-icon>
+              <el-button type="success" size="large" @click="sendCommand('turnOn')" style="width: 100%; height: 70px; font-size: 16px; padding: 0;">
                 开启设备
               </el-button>
-              <el-button type="danger" size="large" @click="sendCommand('turnOff')">
-                <el-icon><VideoPause /></el-icon>
+              <el-button type="danger" size="large" @click="sendCommand('turnOff')" style="width: 100%; height: 70px; font-size: 16px; padding: 0;">
                 关闭设备
               </el-button>
-              <el-button type="warning" size="large" @click="sendCommand('restart')">
-                <el-icon><Refresh /></el-icon>
+              <el-button type="primary" size="large" @click="sendCommand('restart')" style="width: 100%; height: 70px; font-size: 16px; padding: 0;">
                 重启设备
               </el-button>
-              <el-button type="info" size="large" @click="sendCommand('reset')">
-                <el-icon><RefreshLeft /></el-icon>
+              <el-button type="warning" size="large" @click="sendCommand('reset')" style="width: 100%; height: 70px; font-size: 16px; padding: 0;">
                 重置设备
               </el-button>
             </div>
-
-            <div class="advanced-controls">
-              <h4>高级控制</h4>
-              <div class="control-row">
-                <el-button @click="sendCommand('calibrate')">校准设备</el-button>
-                <el-button @click="sendCommand('selfCheck')">自检</el-button>
-                <el-button @click="sendCommand('updateFirmware')">固件升级</el-button>
-              </div>
-            </div>
           </el-card>
         </el-col>
 
-        <el-col :span="12">
-          <el-card shadow="never" class="control-section">
+        <!-- 温度控制 -->
+        <el-col :span="6">
+          <el-card shadow="hover" class="control-section">
             <template #header>
               <div class="section-header">
-                <span>参数调节</span>
+                <el-icon><Sunny /></el-icon>
+                <span>温度控制</span>
               </div>
             </template>
-
             <div class="param-controls">
               <div class="param-item">
-                <label>温度设置 (℃)</label>
+                <label>内部温度 (℃)</label>
                 <el-input-number 
-                  v-model="tempSetting" 
+                  v-model="tinSetting" 
                   :min="-10" 
                   :max="60" 
                   :step="0.5"
-                  @change="adjustTemp"
+                  @change="adjustTin"
+                  style="width: 100%; height: 60px;"
                 />
               </div>
               <div class="param-item">
-                <label>亮度调节 (%)</label>
-                <el-slider 
-                  v-model="brightnessSetting" 
-                  :min="0" 
-                  :max="100"
-                  @change="adjustBrightness"
-                />
-              </div>
-              <div class="param-item">
-                <label>速度调节</label>
-                <el-slider 
-                  v-model="speedSetting" 
-                  :min="0" 
-                  :max="2000"
-                  @change="adjustSpeed"
+                <label>外部温度 (℃)</label>
+                <el-input-number 
+                  v-model="toutSetting" 
+                  :min="-10" 
+                  :max="60" 
+                  :step="0.5"
+                  @change="adjustTout"
+                  style="width: 100%; height: 60px;"
                 />
               </div>
             </div>
           </el-card>
         </el-col>
+
+        <!-- 湿度控制 -->
+        <el-col :span="6">
+          <el-card shadow="hover" class="control-section">
+            <template #header>
+              <div class="section-header">
+                <el-icon><Cloudy /></el-icon>
+                <span>湿度控制</span>
+              </div>
+            </template>
+            <div class="param-controls">
+              <div class="param-item">
+                <label>内部湿度 (%)</label>
+                <el-slider 
+                  v-model="hinSetting" 
+                  :min="0" 
+                  :max="100"
+                  @change="adjustHin"
+                  style="height: 60px;"
+                />
+              </div>
+              <div class="param-item">
+                <label>外部湿度 (%)</label>
+                <el-slider 
+                  v-model="houtSetting" 
+                  :min="0" 
+                  :max="100"
+                  @change="adjustHout"
+                  style="height: 60px;"
+                />
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+
+        <!-- 光照控制 -->
+        <el-col :span="6">
+          <el-card shadow="hover" class="control-section">
+            <template #header>
+              <div class="section-header">
+                <el-icon><Lightning /></el-icon>
+                <span>光照控制</span>
+              </div>
+            </template>
+            <div class="param-controls">
+                <div class="param-item">
+                  <label>内部光照 (lux)</label>
+                  <el-input-number 
+                    v-model="lxinSetting" 
+                    :min="0" 
+                    :max="2000"
+                    @change="adjustLxin"
+                    style="width: 100%; height: 60px;"
+                  />
+                </div>
+                <div class="param-item">
+                  <label>外部光照 (lux)</label>
+                  <el-input-number 
+                    v-model="lxoutSetting" 
+                    :min="0" 
+                    :max="2000"
+                    @change="adjustLxout"
+                    style="width: 100%; height: 60px;"
+                  />
+                </div>
+                <div class="param-item">
+                  <label>亮度调节 (%)</label>
+                  <el-slider 
+                    v-model="brightnessSetting" 
+                    :min="0" 
+                    :max="100"
+                    @change="adjustBrightness"
+                    style="height: 60px;"
+                  />
+                </div>
+              </div>
+          </el-card>
+        </el-col>
       </el-row>
+
+
 
       <el-row :gutter="20" style="margin-top: 20px;">
         <el-col :span="24">
@@ -171,8 +279,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { VideoPlay, VideoPause, Refresh, RefreshLeft } from '@element-plus/icons-vue'
-import { controlDevice as sendControlCommand, getDeviceDetail, getDeviceList } from '@/api/device'
+import { VideoPlay, VideoPause, Refresh, RefreshLeft, Sunny, Cloudy, Lightning } from '@element-plus/icons-vue'
+import { controlDevice as sendControlCommand, getDeviceDetail, getDeviceList, getDeviceRealTimeData, getAllDevicesRealTimeData } from '@/api/device'
 import type { DeviceInfo } from '@/types/api'
 
 const router = useRouter()
@@ -193,9 +301,23 @@ const selectedDevice = ref<DeviceInfo>({
 })
 const availableDevices = ref<DeviceInfo[]>([])
 
-const tempSetting = ref(25)
+// 温度设置
+const tinSetting = ref(25)
+const toutSetting = ref(23)
+
+// 湿度设置
+const hinSetting = ref(50)
+const houtSetting = ref(45)
+
+// 光照设置
+const lxinSetting = ref(500)
+const lxoutSetting = ref(300)
+
+// 亮度设置
 const brightnessSetting = ref(80)
-const speedSetting = ref(1200)
+
+// 当前设备数据
+const currentData = ref<any>({})
 
 // 命令历史
 const commandHistory = ref([
@@ -275,14 +397,40 @@ const fetchDeviceDetail = async (deviceId: string) => {
 }
 
 // 设备选择事件
-const onDeviceSelect = async (deviceId: string) => {
-  await fetchDeviceDetail(deviceId)
+const onDeviceSelect = async (vid: string) => {
+  if (!vid) return
+  
+  try {
+    await fetchDeviceDetail(vid)
+    
+    // 获取设备实时数据
+    await fetchDeviceRealTimeData()
+    
+    // 重置命令历史
+    commandHistory.value = []
+  } catch (error) {
+    console.error('获取设备详情失败:', error)
+    ElMessage.error('获取设备详情失败')
+  }
 }
 
 // 刷新设备详情
 const refreshDeviceDetail = async () => {
-  if (selectedDeviceId.value) {
-    await fetchDeviceDetail(selectedDeviceId.value)
+  if (!selectedDeviceId.value) return
+  
+  try {
+    const response = await getDeviceDetail(selectedDeviceId.value)
+    // 适配ResponseData类型，提取data字段
+    const device = (response as any).data || response
+    selectedDevice.value = device
+    
+    // 同时刷新实时数据
+    await fetchDeviceRealTimeData()
+    
+    ElMessage.success('设备信息已刷新')
+  } catch (error) {
+    console.error('刷新设备信息失败:', error)
+    ElMessage.error('刷新设备信息失败')
   }
 }
 
@@ -319,34 +467,104 @@ const sendCommand = async (command: string, params: Record<string, any> = {}) =>
 // 获取命令名称
 const getCommandName = (command: string) => {
   const commandNames: Record<string, string> = {
-    'turnOn': '开启',
-    'turnOff': '关闭',
-    'restart': '重启',
-    'reset': '重置',
-    'calibrate': '校准',
-    'selfCheck': '自检',
-    'updateFirmware': '固件升级',
-    'setTemp': '温度设置',
-    'setBrightness': '亮度调节',
-    'setSpeed': '速度调节'
+    'turnOn': '开启设备',
+    'turnOff': '关闭设备',
+    'restart': '重启设备',
+    'reset': '重置设备',
+    'setTin': '设置内部温度',
+    'setTout': '设置外部温度',
+    'setHin': '设置内部湿度',
+    'setHout': '设置外部湿度',
+    'setLxin': '设置内部光照',
+    'setLxout': '设置外部光照',
+    'setBrightness': '设置亮度'
   }
   
   return commandNames[command] || command
 }
 
-// 调整温度
-const adjustTemp = async () => {
-  await sendCommand('setTemp', { temp: tempSetting.value })
+// 温度控制
+const adjustTin = async () => {
+  await sendCommand('setTin', { tin: tinSetting.value })
 }
 
-// 调整亮度
+const adjustTout = async () => {
+  await sendCommand('setTout', { tout: toutSetting.value })
+}
+
+// 湿度控制
+const adjustHin = async () => {
+  await sendCommand('setHin', { hin: hinSetting.value })
+}
+
+const adjustHout = async () => {
+  await sendCommand('setHout', { hout: houtSetting.value })
+}
+
+// 光照控制
+const adjustLxin = async () => {
+  await sendCommand('setLxin', { lxin: lxinSetting.value })
+}
+
+const adjustLxout = async () => {
+  await sendCommand('setLxout', { lxout: lxoutSetting.value })
+}
+
+// 亮度控制
 const adjustBrightness = async () => {
   await sendCommand('setBrightness', { brightness: brightnessSetting.value })
 }
 
-// 调整速度
-const adjustSpeed = async () => {
-  await sendCommand('setSpeed', { speed: speedSetting.value })
+// 格式化时间
+const formatTime = (timestamp: string) => {
+  if (!timestamp) return '-';
+  const date = new Date(timestamp);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+// 获取设备实时数据
+const fetchDeviceRealTimeData = async () => {
+  if (!selectedDeviceId.value) return;
+  
+  try {
+    // 使用单个设备实时数据接口，只获取当前设备的数据
+    const response = await getDeviceRealTimeData(selectedDeviceId.value);
+    console.log('获取到当前设备实时数据:', response);
+    
+    // 处理响应数据格式 - 使用类型断言处理可能的响应对象
+    let deviceData = null
+    const resp = response as any
+    
+    if (resp && resp.code === 200) {
+      // 标准响应格式：response.data 包含设备数据
+      deviceData = resp.data
+    } else if (resp && typeof resp === 'object') {
+      // 直接返回设备数据对象
+      deviceData = resp
+    }
+    
+    if (deviceData) {
+      currentData.value = deviceData;
+      
+      // 同步设置控件的当前值
+      if (deviceData.tin !== undefined) tinSetting.value = deviceData.tin;
+      if (deviceData.tout !== undefined) toutSetting.value = deviceData.tout;
+      if (deviceData.hin !== undefined) hinSetting.value = deviceData.hin;
+      if (deviceData.hout !== undefined) houtSetting.value = deviceData.hout;
+      if (deviceData.lxin !== undefined) lxinSetting.value = deviceData.lxin;
+      if (deviceData.lxout !== undefined) lxoutSetting.value = deviceData.lxout;
+      if (deviceData.brightness !== undefined) brightnessSetting.value = deviceData.brightness;
+    }
+  } catch (error) {
+    console.error('获取设备实时数据失败:', error);
+  }
 }
 
 // 返回设备列表
@@ -354,7 +572,7 @@ const goBack = () => {
   router.push('/device/list')
 }
 
-// 状态相关函数
+// 页面加载时初始化状态相关函数
 const getStatusTagType = (status: string | number) => {
   const statusNum = typeof status === 'string' ? parseInt(status) : status
   switch (statusNum) {
@@ -448,11 +666,81 @@ onMounted(() => {
 
 .control-section {
   margin-bottom: 20px;
+  height: 320px;
+  display: flex;
+  flex-direction: column;
 }
 
 .section-header {
   font-weight: bold;
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.control-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 12px;
+}
+
+.param-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 20px;
+}
+
+.param-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.param-item label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+}
+
+/* 当前状态数据展示样式 */
+.current-data-display {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.data-item {
+  text-align: center;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.data-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 5px;
+}
+
+.data-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #495057;
+}
+
+.update-time {
+  margin-left: 15px;
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .control-grid {

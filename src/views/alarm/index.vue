@@ -492,9 +492,27 @@ const refreshAlarms = () => {
 // 处理报警
 const resolveAlarm = async (alarm: any) => {
   try {
+    // 检查报警ID是否存在
+    if (!alarm || !alarm.id) {
+      throw new Error('报警ID不存在')
+    }
+    
+    console.log('开始处理报警，报警ID:', alarm.id)
+    
     const response = await apiResolveAlarm(alarm.id)
-    // 检查响应是否成功
-    if (response) {
+    console.log('API响应原始数据:', response)
+    console.log('响应类型:', typeof response)
+    console.log('响应结构:', JSON.stringify(response, null, 2))
+    
+    // 检查响应是否成功 - 适配后端响应格式
+    const isSuccess = response && (
+      response.code === 200 || 
+      (response as any).success === true
+    )
+    
+    console.log('响应检查结果:', isSuccess)
+    
+    if (isSuccess) {
       // 添加处理记录到历史
       await addAlarmHistory(alarm.id, {
         action: '处理报警',
@@ -505,11 +523,23 @@ const resolveAlarm = async (alarm: any) => {
       ElMessage.success('报警处理成功')
       fetchAlarms() // 刷新列表
     } else {
-      throw new Error('处理报警失败')
+      console.log('响应不满足成功条件，抛出错误')
+      const errorMsg = response?.msg || (response as any)?.message || (response as any)?.error || '处理报警失败'
+      throw new Error(errorMsg)
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('处理报警失败:', error)
-    ElMessage.error('处理报警失败')
+    
+    // 根据错误类型显示不同的错误信息
+    if (error.message.includes('Network Error') || error.message.includes('timeout')) {
+      ElMessage.error('网络连接失败，请检查后端服务是否启动')
+    } else if (error.message.includes('404')) {
+      ElMessage.error('后端API接口不存在，请检查接口路径')
+    } else if (error.message.includes('报警ID不存在')) {
+      ElMessage.error('报警数据异常，请刷新页面重试')
+    } else {
+      ElMessage.error(`处理报警失败: ${error.message}`)
+    }
   }
 }
 
@@ -598,18 +628,24 @@ const loadAlarmHistory = async (alarmId: number) => {
     const response = await getAlarmHistory(alarmId)
     console.log('后端API响应:', response)
     
-    // 检查响应格式 - 适配后端返回的数据结构
+    // 检查响应格式 - 适配HTTP拦截器修改后的格式
     let resultData = null
     const responseData = response as any
-    if (responseData && responseData.history) {
-      // 后端返回格式: {history: Array}
-      resultData = responseData.history
-    } else if (responseData && responseData.data) {
+    
+    // 由于HTTP拦截器现在返回完整响应对象，需要检查data字段
+    if (responseData && responseData.data) {
       // 标准格式: {data: Array}
       resultData = responseData.data
+    } else if (responseData && responseData.history) {
+      // 后端返回格式: {history: Array}
+      resultData = responseData.history
     } else if (responseData && Array.isArray(responseData)) {
       // 直接返回数组格式
       resultData = responseData
+    } else if (responseData && responseData.code === 200) {
+      // HTTP拦截器返回完整响应，但data可能为null
+      console.log('HTTP拦截器返回完整响应，但data字段为空')
+      resultData = []
     }
     
     console.log('处理后的数据:', resultData)

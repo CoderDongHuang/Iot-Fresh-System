@@ -99,40 +99,8 @@
     <!-- 中间图表区域 -->
     <div class="chart-area">
       <el-row :gutter="20">
-        <el-col :xs="24" :lg="16">
-          <el-card shadow="hover" class="chart-card">
-            <template #header>
-              <div class="chart-header">
-                <span>温度实时监控</span>
-                <div class="chart-controls">
-                  <el-radio-group v-model="tempTimeRange" size="small">
-                    <el-radio-button value="1h">1小时</el-radio-button>
-                    <el-radio-button value="6h">6小时</el-radio-button>
-                    <el-radio-button value="24h">24小时</el-radio-button>
-                  </el-radio-group>
-                  <el-button 
-                    type="primary" 
-                    size="small" 
-                    text
-                    @click="refreshChart('temperature')"
-                  >
-                    <el-icon><Refresh /></el-icon>
-                    刷新
-                  </el-button>
-                </div>
-              </div>
-            </template>
-            <TemperatureChart 
-              ref="tempChartRef" 
-              :time-range="tempTimeRange"
-              @click="handleChartClick('temperature')"
-              class="chart-item"
-            />
-          </el-card>
-        </el-col>
-        
-        <el-col :xs="24" :lg="8">
-          <el-card shadow="hover" class="chart-card">
+        <el-col :xs="24" :lg="12">
+          <el-card shadow="hover" class="chart-card" style="height: 500px;">
             <template #header>
               <div class="chart-header">
                 <span>设备状态分布</span>
@@ -143,59 +111,24 @@
               :data="statistics.deviceStatusDistribution"
               @click="handleChartClick('device')"
               class="chart-item"
-            />
-          </el-card>
-        </el-col>
-      </el-row>
-      
-      <el-row :gutter="20" style="margin-top: 20px;">
-        <el-col :xs="24" :lg="12">
-          <el-card shadow="hover" class="chart-card">
-            <template #header>
-              <div class="chart-header">
-                <span>光照强度监控</span>
-                <el-select v-model="selectedDevice" size="small" placeholder="选择设备" style="width: 150px;">
-                  <el-option
-                    v-for="device in deviceList"
-                    :key="device.vid"
-                    :label="device.deviceName"
-                    :value="device.vid"
-                  />
-                </el-select>
-              </div>
-            </template>
-            <LightChart 
-              ref="lightChartRef" 
-              :time-range="tempTimeRange"
-              :device-vid="selectedDevice" 
-              @click="handleChartClick('light')"
-              class="chart-item"
+              style="height: 450px;"
             />
           </el-card>
         </el-col>
         
         <el-col :xs="24" :lg="12">
-          <el-card shadow="hover" class="chart-card">
+          <el-card shadow="hover" class="chart-card" style="height: 500px;">
             <template #header>
               <div class="chart-header">
                 <span>报警类型统计</span>
-                <el-date-picker
-                  v-model="alarmDateRange"
-                  type="daterange"
-                  range-separator="至"
-                  start-placeholder="开始日期"
-                  end-placeholder="结束日期"
-                  size="small"
-                  @change="handleAlarmDateChange"
-                />
               </div>
             </template>
             <AlarmBarChart 
               ref="alarmChartRef" 
               :data="alarmChartData"
-              :date-range="alarmDateRange" 
               @click="handleChartClick('alarm')"
               class="chart-item"
+              style="height: 450px;"
             />
           </el-card>
         </el-col>
@@ -214,26 +147,14 @@
     >
       
       <div class="zoomed-chart-container">
-        <TemperatureChart 
-          v-if="zoomedChart === 'temperature'"
-          :time-range="tempTimeRange"
-          class="zoomed-chart"
-        />
         <DevicePieChart 
           v-if="zoomedChart === 'device'"
           :data="statistics.deviceStatusDistribution"
           class="zoomed-chart"
         />
-        <LightChart 
-          v-if="zoomedChart === 'light'"
-          :time-range="tempTimeRange"
-          :device-vid="selectedDevice"
-          class="zoomed-chart"
-        />
         <AlarmBarChart 
           v-if="zoomedChart === 'alarm'"
           :data="alarmChartData"
-          :date-range="alarmDateRange"
           class="zoomed-chart"
         />
       </div>
@@ -291,9 +212,7 @@ import { getDashboardStatistics } from '@/api/dashboard'
 import { getDeviceList } from '@/api/device'
 import { getAlarmStatistics } from '@/api/alarm'
 import { exportToCSV } from '@/utils/export'
-import TemperatureChart from '@/components/charts/TemperatureChart.vue'
 import DevicePieChart from '@/components/charts/DevicePieChart.vue'
-import LightChart from '@/components/charts/LightChart.vue'
 import AlarmBarChart from '@/components/charts/AlarmBarChart.vue'
 import DeviceStatusTable from '@/components/device/DeviceStatusTable.vue'
 import type { DeviceInfo } from '@/types/api'
@@ -322,15 +241,10 @@ const statistics = reactive({
 })
 
 // 图表相关
-const tempChartRef = ref()
 const deviceChartRef = ref()
-const lightChartRef = ref()
 const alarmChartRef = ref()
 
-const tempTimeRange = ref('1h')
-const selectedDevice = ref('')
 const deviceList = ref<DeviceInfo[]>([])
-const alarmDateRange = ref<[Date, Date]>()
 
 // 设备列表分页相关
 const deviceCurrentPage = ref(1)
@@ -394,12 +308,11 @@ const fetchAlarmStatistics = async () => {
     }
     
     if (stats) {
-      // 将统计数据转换为图表需要的格式
+      // 将统计数据转换为图表需要的格式 - 三个级别：紧急、重要、一般
       alarmChartData.value = [
-        { type: '紧急', count: stats.critical || 0, level: 'critical' },
-        { type: '重要', count: stats.high || 0, level: 'high' },
-        { type: '一般', count: stats.medium || 0, level: 'medium' },
-        { type: '提示', count: stats.low || 0, level: 'low' }
+        { type: '紧急', count: stats.high || 0, level: 'high' },
+        { type: '重要', count: stats.medium || 0, level: 'medium' },
+        { type: '一般', count: stats.low || 0, level: 'low' }
       ]
     } else {
       console.warn('报警统计数据格式不正确:', response)
@@ -487,15 +400,13 @@ const fetchDeviceList = async () => {
         ipAddress: device.ip_address || device.ipAddress,
         macAddress: device.mac_address || device.macAddress,
         lastOnlineTime: device.last_online_time || device.lastOnlineTime,
+        lastHeartbeat: device.last_heartbeat || device.lastHeartbeat || device.last_online_time || device.lastOnlineTime,
+        contactPhone: device.contact_phone || device.contactPhone,
         createdAt: device.created_at || device.createTime
       }))
       
       deviceList.value = normalizedList
       deviceTotal.value = resultData.total || resultData.list.length
-      
-      if (deviceList.value.length > 0 && !selectedDevice.value) {
-        selectedDevice.value = deviceList.value[0].vid
-      }
     } else {
       console.warn('设备列表数据格式不正确:', response)
       deviceList.value = []
@@ -509,19 +420,9 @@ const fetchDeviceList = async () => {
 // 刷新图表
 const refreshChart = (type: string) => {
   switch (type) {
-    case 'temperature':
-      // 重新获取数据以实现刷新效果
-      fetchStatistics()
-      break
     case 'device':
       // 重新获取数据以实现刷新效果
       fetchDeviceList()
-      break
-    case 'light':
-      // 重新获取数据以实现刷新效果
-      if (lightChartRef.value && typeof lightChartRef.value.refresh === 'function') {
-        lightChartRef.value.refresh()
-      }
       break
     case 'alarm':
       // 重新获取数据以实现刷新效果
@@ -564,18 +465,18 @@ const handleControlDevice = (device: DeviceInfo) => {
   router.push(`/device/detail/${device.vid}`)
 }
 
-// 处理报警日期变化
-const handleAlarmDateChange = () => {
-  fetchStatistics()
-}
+
 
 // 处理图表点击放大
 const handleChartClick = (chartType: string) => {
   const chartTitles = {
-    temperature: '温度监控图表',
     device: '设备状态分布',
-    light: '光照强度监控',
     alarm: '报警类型统计'
+  }
+  
+  // 只处理存在的图表类型
+  if (!(chartType in chartTitles)) {
+    return
   }
   
   zoomedChart.value = chartType
@@ -585,9 +486,7 @@ const handleChartClick = (chartType: string) => {
   // 延迟触发图表resize，确保弹窗完全打开
   setTimeout(() => {
     const chartRefs = {
-      temperature: tempChartRef,
       device: deviceChartRef,
-      light: lightChartRef,
       alarm: alarmChartRef
     }
     
